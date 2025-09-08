@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบตรวจสอบรายชื่อนักเรียนที่มีเวลาเรียนไม่ครบ 80%</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'IBM Plex Sans Thai', sans-serif;
+        }
+        .tab-button.active {
+            border-color: #3b82f6;
+            color: #3b82f6;
+            font-weight: 600;
+        }
+        .btn-action {
+            padding: 4px 12px;
+            font-size: 0.875rem;
+            border-radius: 0.375rem;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .btn-approve {
+            background-color: #10B981; /* green-500 */
+        }
+        .btn-approve:hover {
+            background-color: #059669; /* green-600 */
+        }
+        .btn-cancel {
+            background-color: #F59E0B; /* amber-500 */
+        }
+        .btn-cancel:hover {
+            background-color: #D97706; /* amber-600 */
+        }
+        .btn-action:disabled {
+            background-color: #D1D5DB; /* gray-300 */
+            cursor: not-allowed;
+        }
+        .stat-card-active {
+            box-shadow: 0 0 0 2px;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-5xl">
+        <header class="text-center mb-8">
+            <img src="https://i.postimg.cc/fbhJ98Xj/2.png" alt="Logo โรงเรียนนาดูนประชาสรรพ์" class="mx-auto mb-4" style="width: 150px;">
+            <h1 class="text-3xl font-bold text-blue-600">ระบบตรวจสอบรายชื่อนักเรียนที่มีเวลาเรียนไม่ครบ 80%</h1>
+            <p class="text-gray-600 mt-2 text-lg">โรงเรียนนาดูนประชาสรรพ์ จังหวัดมหาสารคาม</p>
+        </header>
+
+        <!-- Announcements Section -->
+        <div id="announcement-section" class="mb-8 p-4 bg-purple-100 border-l-4 border-purple-500 text-purple-800 rounded-md shadow-sm hidden">
+             <h3 class="font-bold text-lg mb-2">ข่าวประชาสัมพันธ์</h3>
+             <div id="announcement-content" class="space-y-2"></div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="mb-6 border-b border-gray-200">
+            <nav class="flex space-x-4" aria-label="Tabs">
+                <button onclick="changeTab('student')" class="tab-button active text-lg py-3 px-4 border-b-2 border-transparent hover:border-gray-300 hover:text-gray-600 transition duration-150 ease-in-out">
+                    สำหรับนักเรียน
+                </button>
+                <button onclick="changeTab('teacher')" class="tab-button text-lg py-3 px-4 border-b-2 border-transparent hover:border-gray-300 hover:text-gray-600 transition duration-150 ease-in-out">
+                    สำหรับครู
+                </button>
+                <button onclick="changeTab('admin')" class="tab-button text-lg py-3 px-4 border-b-2 border-transparent hover:border-gray-300 hover:text-gray-600 transition duration-150 ease-in-out">
+                    สำหรับผู้ดูแลระบบ
+                </button>
+            </nav>
+        </div>
+
+        <!-- Tab Content -->
+        <main id="tab-content">
+            <!-- Student Tab -->
+            <div id="student-tab">
+                 <!-- Student Stats Section -->
+                <div id="student-stats-section" class="mb-6 bg-white p-6 rounded-lg shadow-md">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+                        <h2 class="text-2xl font-semibold">สถิตินักเรียนที่มีเวลาเรียนไม่ครบ 80% (แยกตามห้อง)</h2>
+                        <div class="flex gap-2 mt-4 sm:mt-0">
+                            <select id="statsSemester" onchange="loadStudentStats()" class="px-4 py-2 border border-gray-300 rounded-md">
+                                <option value="">ทุกภาคเรียน</option>
+                                <option value="1">ภาคเรียนที่ 1</option>
+                                <option value="2">ภาคเรียนที่ 2</option>
+                            </select>
+                            <select id="statsAcademicYear" onchange="loadStudentStats()" class="px-4 py-2 border border-gray-300 rounded-md">
+                                <option value="">ทุกปีการศึกษา</option>
+                                <!-- Populated by JS -->
+                            </select>
+                        </div>
+                    </div>
+                    <div id="stats-content" class="relative h-96">
+                        <canvas id="stats-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-2xl font-semibold mb-4">ตรวจสอบข้อมูลนักเรียนที่มีเวลาเรียนไม่ครบ 80%</h2>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <input type="text" id="studentIdInput" class="flex-grow w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="กรอกเลขประจำตัวนักเรียน">
+                        <button onclick="searchStudent()" class="w-full sm:w-auto bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600 transition duration-150 ease-in-out font-semibold">ค้นหา</button>
+                    </div>
+                    <div id="student-result" class="mt-6"></div>
+                </div>
+            </div>
+
+            <!-- Teacher Tab -->
+            <div id="teacher-tab" class="hidden">
+                 <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-2xl font-semibold mb-4">อัปโหลดรายชื่อนักเรียน</h2>
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label for="semester" class="block text-sm font-medium text-gray-700">ภาคเรียน</label>
+                                <select id="semester" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="academicYear" class="block text-sm font-medium text-gray-700">ปีการศึกษา</label>
+                                <select id="academicYear" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                                    <!-- Options will be populated by JS -->
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="teacherId" class="block text-sm font-medium text-gray-700">รหัสครูผู้สอน</label>
+                            <input type="text" id="teacherId" placeholder="เช่น Txxx" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="teacherName" class="block text-sm font-medium text-gray-700">ชื่อ-สกุล ครูผู้สอน</label>
+                            <input type="text" id="teacherName" placeholder="เช่น นางสาวคุณครู สอนดี" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="excelFile" class="block text-sm font-medium text-gray-700">แนบไฟล์ Excel</label>
+                            <div class="mt-1 flex flex-col sm:flex-row gap-2 items-center">
+                                <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" class=" block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                                <button onclick="downloadTemplate()" class="w-full sm:w-auto flex-shrink-0 bg-gray-200 text-gray-700 px-4 py-2 text-sm rounded-md hover:bg-gray-300 transition duration-150 ease-in-out">
+                                    ดาวน์โหลดเทมเพลต
+                                </button>
+                            </div>
+                            <p class="mt-1 text-xs text-gray-500">ไฟล์ต้องมีคอลัมน์: รหัสนักเรียน, ชื่อ สกุล, เข้าเรียน(%), ชั้น, รหัสวิชา, ชื่อวิชา</p>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                             <button onclick="viewUploadedStudents()" class="w-full bg-sky-500 text-white px-6 py-3 rounded-md hover:bg-sky-600 transition duration-150 ease-in-out font-semibold">ดูรายชื่อที่อัปโหลด</button>
+                             <button onclick="uploadData()" class="w-full bg-green-500 text-white px-6 py-3 rounded-md hover:bg-green-600 transition duration-150 ease-in-out font-semibold">บันทึกข้อมูล</button>
+                        </div>
+                    </div>
+                    <div id="teacher-status" class="mt-4"></div>
+                </div>
+            </div>
+
+            <!-- Admin Tab -->
+            <div id="admin-tab" class="hidden">
+                <!-- Admin Login -->
+                <div id="admin-login" class="bg-white p-6 rounded-lg shadow-md">
+                     <h2 class="text-2xl font-semibold mb-4">เข้าสู่ระบบผู้ดูแล</h2>
+                     <div class="space-y-4 max-w-sm mx-auto">
+                        <div>
+                            <label for="adminUser" class="block text-sm font-medium text-gray-700">ชื่อผู้ใช้</label>
+                            <input type="text" id="adminUser" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="adminPass" class="block text-sm font-medium text-gray-700">รหัสผ่าน</label>
+                            <input type="password" id="adminPass" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <button onclick="loginAdmin()" class="w-full bg-indigo-500 text-white px-6 py-2 rounded-md hover:bg-indigo-600 transition duration-150 ease-in-out font-semibold">เข้าสู่ระบบ</button>
+                        <div id="admin-login-error" class="text-red-500 text-sm text-center"></div>
+                     </div>
+                </div>
+
+                <!-- Admin Panel -->
+                <div id="admin-panel" class="hidden space-y-8">
+                    <!-- Announcements Management -->
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-xl font-semibold mb-4">จัดการข่าวประชาสัมพันธ์</h3>
+                        <div class="flex gap-4 mb-4">
+                            <input type="text" id="announcementInput" class="flex-grow px-4 py-2 border border-gray-300 rounded-md" placeholder="เพิ่มข่าวใหม่...">
+                            <button onclick="addAnnouncement()" class="bg-blue-500 text-white px-6 py-2 rounded-md hover:bg-blue-600">เพิ่ม</button>
+                        </div>
+                        <div id="admin-announcements-list" class="space-y-2"></div>
+                    </div>
+
+                    <!-- Student Data Management -->
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <h3 class="text-xl font-semibold mb-4">จัดการข้อมูลนักเรียนและอนุมัติสิทธิ์สอบ</h3>
+                        <div class="flex flex-col sm:flex-row gap-2 mb-4">
+                           <input type="text" id="classFilter" class="flex-grow px-4 py-2 border border-gray-300 rounded-md" placeholder="กรองตามชั้นเรียน (เช่น 1/2)">
+                           <select id="printSemester" class="px-4 py-2 border border-gray-300 rounded-md">
+                               <option value="">ทุกภาคเรียน</option>
+                               <option value="1">ภาคเรียนที่ 1</option>
+                               <option value="2">ภาคเรียนที่ 2</option>
+                           </select>
+                           <select id="printAcademicYear" class="px-4 py-2 border border-gray-300 rounded-md">
+                               <option value="">ทุกปีการศึกษา</option>
+                               <!-- Populated by JS -->
+                           </select>
+                           <button onclick="filterAndPrint()" class="bg-gray-700 text-white px-6 py-2 rounded-md hover:bg-gray-800">พิมพ์</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                             <table class="min-w-full bg-white">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600">รหัสนักเรียน</th>
+                                        <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600">ชื่อ-สกุล</th>
+                                        <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600">วิชา</th>
+                                        <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600">เวลาเรียน (%)</th>
+                                        <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600">สถานะ</th>
+                                        <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600">ดำเนินการ</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-student-list"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+     <footer class="text-center py-6 mt-8 border-t border-gray-200 bg-white">
+        <div class="text-sm text-gray-600">
+            <p>งานทะเบียน-วัดผล โรงเรียนนาดูนประชาสรรพ์</p>
+            <p>พัฒนาระบบโดย <a href="https://www.facebook.com/chaiwat6966" target="_blank" class="text-blue-600 hover:underline">ครูชัยวัฒน์ สุบัติคำ</a> ครู คศ.3 กลุ่มสาระการเรียนรู้ คณิตศาสตร์</p>
+        </div>
+    </footer>
+
+    <!-- Modals -->
+    <div id="loading-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 text-center bg-white p-8 rounded-lg shadow-xl">
+             <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mx-auto"></div>
+             <p class="mt-4 text-lg font-medium text-gray-700">กำลังประมวลผล...</p>
+        </div>
+    </div>
+    
+    <div id="confirm-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-1/4 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                    <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                </div>
+                <h3 class="text-lg leading-6 font-medium text-gray-900 mt-2" id="confirm-modal-title">ยืนยันการกระทำ</h3>
+                <div class="mt-2 px-7 py-3"><p class="text-sm text-gray-500" id="confirm-modal-text">คุณแน่ใจหรือไม่?</p></div>
+                <div class="items-center px-4 py-3 gap-2 flex justify-center">
+                    <button id="confirm-modal-ok" class="px-4 py-2 bg-red-500 text-white text-base font-medium rounded-md w-24 hover:bg-red-700">ตกลง</button>
+                    <button id="confirm-modal-cancel" class="px-4 py-2 bg-gray-200 text-gray-900 text-base font-medium rounded-md w-24 hover:bg-gray-300">ยกเลิก</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="student-list-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+        <div class="relative w-full max-w-2xl bg-white rounded-lg shadow-xl">
+             <div class="flex justify-between items-center p-4 border-b">
+                 <h3 class="text-xl font-semibold text-gray-800" id="student-list-modal-title">รายชื่อนักเรียน</h3>
+                 <button onclick="closeStudentListModal()" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center">
+                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                 </button>
+             </div>
+             <div id="student-list-modal-content" class="p-6 max-h-[60vh] overflow-y-auto"></div>
+        </div>
+    </div>
+    
+    <div id="teacher-student-list-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+        <div class="relative w-full max-w-3xl bg-white rounded-lg shadow-xl">
+             <div class="flex justify-between items-center p-4 border-b">
+                 <h3 class="text-xl font-semibold text-gray-800" id="teacher-student-list-modal-title">รายชื่อนักเรียนที่อัปโหลด</h3>
+                 <button onclick="closeTeacherStudentListModal()" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center">
+                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                 </button>
+             </div>
+             <div id="teacher-student-list-modal-content" class="p-6 max-h-[60vh] overflow-y-auto"></div>
+        </div>
+    </div>
+    
+    <!-- Student Search Result Modals -->
+    <div id="student-summary-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-[60] flex items-center justify-center p-4">
+        <div class="relative w-full max-w-2xl bg-white rounded-lg shadow-xl">
+             <div class="flex justify-between items-center p-4 border-b">
+                 <h3 class="text-xl font-semibold text-gray-800" id="student-summary-modal-title"></h3>
+                 <button onclick="closeStudentSummaryModal()" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center">
+                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                 </button>
+             </div>
+             <div id="student-summary-modal-content" class="p-6"></div>
+        </div>
+    </div>
+
+    <div id="student-courses-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-[70] flex items-center justify-center p-4">
+        <div class="relative w-full max-w-3xl bg-white rounded-lg shadow-xl">
+             <div class="flex justify-between items-center p-4 border-b">
+                 <h3 class="text-xl font-semibold text-gray-800" id="student-courses-modal-title"></h3>
+                 <button onclick="closeStudentCoursesModal()" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center">
+                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                 </button>
+             </div>
+             <div id="student-courses-modal-content" class="p-6 max-h-[60vh] overflow-y-auto"></div>
+        </div>
+    </div>
+
+
+    <script>
+        // --- CONFIGURATION ---
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbyuA7gPa3b9qk2xzLt-4pX25-Zs7FXAtyNUyrXVklgbO2hfU5co3X0P0yEP1paQYHNw/exec'; // <-- URL ของ Google Apps Script
+
+        let allStudentDataForAdmin = [];
+        let allStudentDataForStats = [];
+        let statsChart = null;
+        let currentTeacherData = [];
+        let currentStudentSearchData = [];
+
+        // --- CORE FUNCTIONS ---
+        function showLoading(show) {
+            document.getElementById('loading-modal').classList.toggle('hidden', !show);
+        }
+        
+        function customConfirm(text = 'คุณแน่ใจหรือไม่?') {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('confirm-modal');
+                const okButton = document.getElementById('confirm-modal-ok');
+                const cancelButton = document.getElementById('confirm-modal-cancel');
+                const textElement = document.getElementById('confirm-modal-text');
+
+                textElement.textContent = text;
+                modal.classList.remove('hidden');
+
+                const close = (value) => {
+                    modal.classList.add('hidden');
+                    okButton.onclick = null;
+                    cancelButton.onclick = null;
+                    resolve(value);
+                };
+
+                okButton.onclick = () => close(true);
+                cancelButton.onclick = () => close(false);
+            });
+        }
+
+        function changeTab(tabName) {
+            document.querySelectorAll('[id$="-tab"]').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+            document.getElementById(`${tabName}-tab`).classList.remove('hidden');
+            document.querySelector(`button[onclick="changeTab('${tabName}')"]`).classList.add('active');
+        }
+
+        function getEvaluationText(percentage, status) {
+             if (status === 'Approved') {
+                return '<span class="font-semibold text-green-600 bg-green-100 px-2 py-1 rounded-full">อนุมัติให้เข้าสอบ</span>';
+            }
+            if (percentage >= 60) {
+                return '<span class="font-semibold text-orange-600">ยื่นคำร้องขอมีสิทธิ์สอบ</span>';
+            }
+            return '<span class="font-semibold text-red-600">ลงทะเบียนเรียนซ้ำรายวิชา</span>';
+        }
+        
+        async function apiFetch(action, method = 'GET', body = null, showSpinner = true) {
+            if (!GAS_URL) {
+                alert('กรุณาตั้งค่า Google Apps Script URL ในไฟล์ index.html ก่อน');
+                return null;
+            }
+
+            if (showSpinner) showLoading(true);
+            try {
+                let url = GAS_URL;
+                const options = { method, redirect: 'follow', mode: 'cors', cache: 'no-cache' };
+
+                if (method === 'POST') {
+                    options.body = JSON.stringify({ ...body, action });
+                    options.headers = { 'Content-Type': 'text/plain;charset=utf-8' };
+                } else { 
+                    url += `?action=${action}${body ? '&' + new URLSearchParams(body) : ''}`;
+                }
+
+                const response = await fetch(url, options);
+
+                if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
+                const result = await response.json();
+                if (result.status === 'error') throw new Error(result.message);
+                return result.data;
+            } catch (error) {
+                console.error('API Fetch Error:', error);
+                let userFriendlyMessage = `เกิดข้อผิดพลาด: ${error.message}`;
+                if (error.message.includes("Sheet is not set up correctly")) {
+                    userFriendlyMessage = 'เกิดข้อผิดพลาด: ไม่พบคอลัมน์ที่จำเป็นใน Google Sheet\n\nข้อแนะนำ: โปรดตรวจสอบว่าชีต "List" มีคอลัมน์ "สถานะ" อยู่หรือไม่ หากไม่มี ให้เพิ่มคอลัมน์นี้ แล้วลองอีกครั้ง';
+                }
+                if (showSpinner) alert(userFriendlyMessage); // Only show alert for main actions
+                return null;
+            } finally {
+                if (showSpinner) showLoading(false);
+            }
+        }
+
+
+        // --- STUDENT FUNCTIONS ---
+        async function loadStudentStats() {
+            const statsDiv = document.getElementById('stats-content');
+            const semester = document.getElementById('statsSemester').value;
+            const academicYear = document.getElementById('statsAcademicYear').value;
+
+            try {
+                let data = allStudentDataForStats;
+                // If the main data isn't loaded yet, fetch it.
+                if (data.length === 0) {
+                    data = await apiFetch('getAllStudents');
+                    if (!data) { // If fetching fails, exit.
+                         statsDiv.innerHTML = '<p class="text-center text-red-500 py-10">ไม่สามารถโหลดข้อมูลได้</p>';
+                         return;
+                    }
+                    allStudentDataForStats = data;
+                }
+                
+                // Apply filters
+                let filteredData = data;
+                if (semester) {
+                    filteredData = filteredData.filter(s => s.semester == semester);
+                }
+                if (academicYear) {
+                    filteredData = filteredData.filter(s => s.academicYear == academicYear);
+                }
+
+                if (filteredData.length === 0) {
+                    statsDiv.innerHTML = '<p class="text-center text-gray-500 py-10">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</p>';
+                    if(statsChart) statsChart.destroy();
+                    return;
+                }
+
+                const studentsByClass = filteredData.reduce((acc, student) => {
+                    const className = student.class;
+                    if (className && !acc[className]) acc[className] = new Set();
+                    if (className) acc[className].add(student.studentId);
+                    return acc;
+                }, {});
+                
+                const sortedClasses = Object.keys(studentsByClass).sort((a, b) => a.localeCompare(b, undefined, {numeric: true}));
+                
+                const labels = sortedClasses.map(name => `ห้อง ${name}`);
+                const chartData = sortedClasses.map(name => studentsByClass[name].size);
+                
+                const canvas = document.getElementById('stats-chart');
+                if (!canvas) {
+                    throw new Error("Canvas element not found in DOM.");
+                }
+                const ctx = canvas.getContext('2d');
+                
+                if(statsChart) statsChart.destroy();
+                
+                Chart.defaults.font.family = "'IBM Plex Sans Thai', 'sans-serif'";
+
+                const vibrantColors = [
+                    'rgba(255, 99, 132, 0.6)', 'rgba(54, 162, 235, 0.6)', 'rgba(255, 206, 86, 0.6)',
+                    'rgba(75, 192, 192, 0.6)', 'rgba(153, 102, 255, 0.6)', 'rgba(255, 159, 64, 0.6)',
+                    'rgba(239, 68, 68, 0.6)', 'rgba(16, 185, 129, 0.6)', 'rgba(245, 158, 11, 0.6)',
+                    'rgba(99, 102, 241, 0.6)', 'rgba(217, 70, 239, 0.6)', 'rgba(13, 148, 136, 0.6)'
+                ];
+
+                statsChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: { 
+                        labels, 
+                        datasets: [{ 
+                            label: 'จำนวนนักเรียน', 
+                            data: chartData, 
+                            backgroundColor: vibrantColors,
+                            borderColor: vibrantColors.map(c => c.replace('0.6', '1')),
+                            borderWidth: 1,
+                            borderRadius: 8,
+                            borderSkipped: false,
+                        }] 
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: { 
+                            y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 12 } } },
+                            x: { ticks: { font: { size: 12 } } }
+                        },
+                        plugins: { 
+                            legend: { display: false }, 
+                            tooltip: { 
+                                titleFont: { size: 14, weight: 'bold'},
+                                bodyFont: { size: 12 },
+                                callbacks: { 
+                                    title: item => item[0].label, 
+                                    label: ctx => `มี ${ctx.parsed.y} คน` 
+                                },
+                                backgroundColor: '#4B5563',
+                                padding: 10,
+                                cornerRadius: 5
+                            } 
+                        },
+                        onClick: (evt) => {
+                            const points = statsChart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
+                            if (points.length) {
+                                const className = statsChart.data.labels[points[0].index].replace('ห้อง ', '');
+                                showStudentListModal(className);
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error("Error loading student stats chart:", error);
+                if (statsDiv) {
+                    statsDiv.innerHTML = '<p class="text-center text-red-500 py-10">เกิดข้อผิดพลาดในการแสดงผลสถิติ</p>';
+                }
+            }
+        }
+
+        function showStudentListModal(className) {
+            const modal = document.getElementById('student-list-modal');
+            const title = document.getElementById('student-list-modal-title');
+            const content = document.getElementById('student-list-modal-content');
+            
+            title.textContent = `รายชื่อนักเรียนห้อง ${className}`;
+            
+            const studentsInClass = allStudentDataForStats.filter(s => s.class === className);
+            
+            const studentSummary = studentsInClass.reduce((acc, record) => {
+                if (!acc[record.studentId]) {
+                    acc[record.studentId] = { id: record.studentId, name: record.studentName, highCount: 0, lowCount: 0 };
+                }
+                if (record.attendancePercent >= 60) acc[record.studentId].highCount++;
+                else acc[record.studentId].lowCount++;
+                return acc;
+            }, {});
+            
+            const studentListHtml = Object.values(studentSummary)
+                .map(student => `
+                    <li class="flex justify-between items-center p-2 border-b hover:bg-gray-50 rounded-md">
+                        <a href="#" onclick="event.preventDefault(); quickSearchFromModal('${student.id}')" class="text-blue-600 hover:underline">${student.name}</a>
+                        <div class="flex gap-2 text-sm flex-shrink-0 ml-4">
+                            <span class="bg-orange-100 text-orange-800 px-2 py-1 rounded-full">ยื่นคำร้อง: ${student.highCount} วิชา</span>
+                            <span class="bg-red-100 text-red-800 px-2 py-1 rounded-full">ลงซ้ำ: ${student.lowCount} วิชา</span>
+                        </div>
+                    </li>
+                `).join('');
+                
+            content.innerHTML = `<ul class="list-none space-y-1">${studentListHtml}</ul>`;
+            modal.classList.remove('hidden');
+        }
+
+        function closeStudentListModal() {
+            document.getElementById('student-list-modal').classList.add('hidden');
+        }
+
+        function quickSearchFromModal(studentId) {
+            closeStudentListModal();
+            quickSearch(studentId);
+        }
+        
+        function quickSearch(studentId) {
+            document.getElementById('studentIdInput').value = studentId;
+            searchStudent();
+            document.getElementById('student-result').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        
+        async function searchStudent() {
+            const studentId = document.getElementById('studentIdInput').value.trim();
+            const resultDiv = document.getElementById('student-result');
+            
+            if (!studentId) {
+                resultDiv.innerHTML = '<p class="text-red-500">กรุณากรอกเลขประจำตัวนักเรียน</p>';
+                return;
+            }
+            
+            const data = await apiFetch('searchStudent', 'GET', { studentId });
+
+            if (data && data.length > 0) {
+                currentStudentSearchData = data;
+                const studentName = data[0].studentName;
+
+                document.getElementById('student-summary-modal-title').textContent = `ผลการค้นหาสำหรับ: ${studentId} - ${studentName}`;
+                
+                const totalCount = data.length;
+                const approvedCount = data.filter(r => r.status === 'Approved').length;
+                const requestableCount = data.filter(r => r.attendancePercent >= 60 && r.status !== 'Approved').length;
+                const repeatCount = data.filter(r => r.attendancePercent < 60).length;
+
+                document.getElementById('student-summary-modal-content').innerHTML = `
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                        <div onclick="showStudentCourses('all')" class="p-4 bg-blue-100 rounded-lg cursor-pointer hover:bg-blue-200">
+                            <p class="text-2xl font-bold text-blue-800">${totalCount}</p>
+                            <p class="text-sm text-blue-600">รายวิชาทั้งหมด</p>
+                        </div>
+                        <div onclick="showStudentCourses('approved')" class="p-4 bg-green-100 rounded-lg cursor-pointer hover:bg-green-200">
+                            <p class="text-2xl font-bold text-green-800">${approvedCount}</p>
+                            <p class="text-sm text-green-600">อนุมัติแล้ว</p>
+                        </div>
+                        <div onclick="showStudentCourses('requestable')" class="p-4 bg-orange-100 rounded-lg cursor-pointer hover:bg-orange-200">
+                            <p class="text-2xl font-bold text-orange-800">${requestableCount}</p>
+                            <p class="text-sm text-orange-600">มีสิทธิ์ขอสอบ</p>
+                        </div>
+                        <div onclick="showStudentCourses('repeat')" class="p-4 bg-red-100 rounded-lg cursor-pointer hover:bg-red-200">
+                            <p class="text-2xl font-bold text-red-800">${repeatCount}</p>
+                            <p class="text-sm text-red-600">ต้องเรียนซ้ำ</p>
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById('student-summary-modal').classList.remove('hidden');
+                resultDiv.innerHTML = '';
+            } else if (data) {
+                resultDiv.innerHTML = '<p class="text-center text-gray-500 mt-4">ไม่พบข้อมูลรายวิชาที่เวลาเรียนไม่ครบ</p>';
+            } else {
+                resultDiv.innerHTML = '<p class="text-center text-red-500 mt-4">เกิดข้อผิดพลาดในการค้นหา</p>';
+            }
+        }
+
+        function showStudentCourses(filterType) {
+            let filteredData;
+            let titleText = '';
+
+            switch (filterType) {
+                case 'approved':
+                    filteredData = currentStudentSearchData.filter(r => r.status === 'Approved');
+                    titleText = 'รายวิชาที่ได้รับอนุญาตให้เข้าสอบ';
+                    break;
+                case 'requestable':
+                    filteredData = currentStudentSearchData.filter(r => r.attendancePercent >= 60 && r.status !== 'Approved');
+                    titleText = 'รายวิชาที่มีสิทธิ์ยื่นขอสอบ';
+                    break;
+                case 'repeat':
+                    filteredData = currentStudentSearchData.filter(r => r.attendancePercent < 60);
+                    titleText = 'รายวิชาที่ต้องลงทะเบียนเรียนซ้ำ';
+                    break;
+                default: // 'all'
+                    filteredData = currentStudentSearchData;
+                    titleText = 'รายวิชาทั้งหมด';
+                    break;
+            }
+
+            document.getElementById('student-courses-modal-title').textContent = titleText;
+            
+            const tableHtml = `
+                 <div class="overflow-x-auto rounded-lg border border-gray-200">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ชื่อวิชา</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ครูผู้สอน</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">เวลาเรียน (%)</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ผลการประเมิน</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            ${filteredData.length > 0 ? filteredData.map(row => `
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">${row.courseName} (${row.courseId})</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">${row.teacherName}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">${row.attendancePercent ? row.attendancePercent.toFixed(2) : 'N/A'}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">${getEvaluationText(row.attendancePercent, row.status)}</td>
+                                </tr>
+                            `).join('') : '<tr><td colspan="4" class="text-center p-6 text-gray-500">ไม่พบข้อมูล</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            document.getElementById('student-courses-modal-content').innerHTML = tableHtml;
+            document.getElementById('student-courses-modal').classList.remove('hidden');
+        }
+
+        function closeStudentSummaryModal() {
+            document.getElementById('student-summary-modal').classList.add('hidden');
+        }
+
+        function closeStudentCoursesModal() {
+            document.getElementById('student-courses-modal').classList.add('hidden');
+        }
+
+        // --- TEACHER FUNCTIONS ---
+        async function viewUploadedStudents() {
+            const teacherId = document.getElementById('teacherId').value.trim();
+            const semester = document.getElementById('semester').value;
+            const academicYear = document.getElementById('academicYear').value;
+
+            if (!teacherId) {
+                alert('กรุณากรอกรหัสครูผู้สอนเพื่อเรียกดูข้อมูล');
+                return;
+            }
+            const data = await apiFetch('getStudentsByTeacher', 'GET', { teacherId, semester, academicYear });
+
+            if (data && data.length > 0) {
+                currentTeacherData = data; // Store data for filtering
+                const teacherName = data[0].teacherName || document.getElementById('teacherName').value.trim() || '...';
+                const modal = document.getElementById('teacher-student-list-modal');
+                const title = document.getElementById('teacher-student-list-modal-title');
+                const content = document.getElementById('teacher-student-list-modal-content');
+                
+                title.innerHTML = `
+                    <div>รายชื่อนักเรียนที่อัปโหลดโดย</div>
+                    <div class="text-sm font-normal text-gray-500">${teacherName} (${teacherId})</div>
+                `;
+                
+                const approvedCount = data.filter(r => r.status === 'Approved').length;
+                const requestableCount = data.filter(r => r.attendancePercent >= 60 && r.status !== 'Approved').length;
+                const repeatCount = data.filter(r => r.attendancePercent < 60).length;
+
+                const summaryHtml = `
+                    <div id="teacher-summary-cards" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 text-center">
+                        <div id="teacher-stat-all" onclick="filterTeacherStudentList('all')" class="p-4 bg-blue-100 rounded-lg cursor-pointer border-2 border-blue-500 stat-card-active">
+                            <p class="text-2xl font-bold text-blue-800">${data.length}</p>
+                            <p class="text-sm text-blue-600">รายการทั้งหมด</p>
+                        </div>
+                        <div id="teacher-stat-approved" onclick="filterTeacherStudentList('approved')" class="p-4 bg-green-100 rounded-lg cursor-pointer border-2 border-transparent">
+                            <p class="text-2xl font-bold text-green-800">${approvedCount}</p>
+                            <p class="text-sm text-green-600">อนุมัติแล้ว</p>
+                        </div>
+                        <div id="teacher-stat-requestable" onclick="filterTeacherStudentList('requestable')" class="p-4 bg-orange-100 rounded-lg cursor-pointer border-2 border-transparent">
+                            <p class="text-2xl font-bold text-orange-800">${requestableCount}</p>
+                            <p class="text-sm text-orange-600">มีสิทธิ์ขอสอบ</p>
+                        </div>
+                        <div id="teacher-stat-repeat" onclick="filterTeacherStudentList('repeat')" class="p-4 bg-red-100 rounded-lg cursor-pointer border-2 border-transparent">
+                            <p class="text-2xl font-bold text-red-800">${repeatCount}</p>
+                            <p class="text-sm text-red-600">ต้องเรียนซ้ำ</p>
+                        </div>
+                    </div>
+                    <div id="teacher-table-container"></div>
+                `;
+                
+                content.innerHTML = summaryHtml;
+                filterTeacherStudentList('all'); // Initial table render
+                modal.classList.remove('hidden');
+            } else {
+                alert(`ไม่พบข้อมูลนักเรียนที่อัปโหลดโดยรหัสครู: ${teacherId} ในภาคเรียนและปีการศึกษาที่เลือก`);
+            }
+        }
+
+        function filterTeacherStudentList(filterType) {
+            // Handle active state for summary cards
+            document.querySelectorAll('#teacher-summary-cards > div').forEach(card => {
+                card.classList.remove('stat-card-active', 'border-blue-500', 'border-green-500', 'border-orange-500', 'border-red-500');
+                card.classList.add('border-transparent');
+            });
+            const activeCard = document.getElementById(`teacher-stat-${filterType}`);
+            if (activeCard) {
+                activeCard.classList.add('stat-card-active');
+                activeCard.classList.remove('border-transparent');
+                if (filterType === 'all') activeCard.classList.add('border-blue-500');
+                if (filterType === 'approved') activeCard.classList.add('border-green-500');
+                if (filterType === 'requestable') activeCard.classList.add('border-orange-500');
+                if (filterType === 'repeat') activeCard.classList.add('border-red-500');
+            }
+
+            let filteredData;
+            switch (filterType) {
+                case 'approved':
+                    filteredData = currentTeacherData.filter(r => r.status === 'Approved');
+                    break;
+                case 'requestable':
+                    filteredData = currentTeacherData.filter(r => r.attendancePercent >= 60 && r.status !== 'Approved');
+                    break;
+                case 'repeat':
+                    filteredData = currentTeacherData.filter(r => r.attendancePercent < 60);
+                    break;
+                default: // 'all'
+                    filteredData = currentTeacherData;
+                    break;
+            }
+
+            const tableContainer = document.getElementById('teacher-table-container');
+            const tableHtml = `
+                <div class="overflow-x-auto rounded-lg border border-gray-200">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ชื่อ-สกุล</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ชั้น</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">วิชา</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">เวลาเรียน (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            ${filteredData.length > 0 ? filteredData.map(row => `
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">${row.studentName}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">${row.class}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">${row.courseName}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">${row.attendancePercent ? row.attendancePercent.toFixed(2) : 'N/A'}</td>
+                                </tr>
+                            `).join('') : '<tr><td colspan="4" class="text-center p-6 text-gray-500">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>'}
+                        </tbody>
+                    </table>
+                </div>`;
+            tableContainer.innerHTML = tableHtml;
+        }
+
+
+        function closeTeacherStudentListModal() {
+            document.getElementById('teacher-student-list-modal').classList.add('hidden');
+        }
+
+        function uploadData() {
+            const semester = document.getElementById('semester').value;
+            const academicYear = document.getElementById('academicYear').value;
+            const teacherId = document.getElementById('teacherId').value.trim();
+            const teacherName = document.getElementById('teacherName').value.trim();
+            const file = document.getElementById('excelFile').files[0];
+            const statusDiv = document.getElementById('teacher-status');
+
+            if (!teacherId || !teacherName || !file) {
+                statusDiv.innerHTML = '<p class="text-red-500">กรุณากรอกข้อมูลให้ครบทุกช่องและเลือกไฟล์</p>';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, range: 5 });
+                    
+                    if (!jsonData || jsonData.length < 2 || !jsonData[0]) {
+                        throw new Error('รูปแบบไฟล์ไม่ถูกต้อง (ข้อมูลควรเริ่มที่แถวที่ 7)');
+                    }
+
+                    const headers = jsonData[0].map(h => h ? String(h).trim() : '');
+                    const requiredHeaders = ['รหัสนักเรียน', 'ชื่อ สกุล', 'เข้าเรียน(%)', 'ชั้น', 'รหัสวิชา', 'ชื่อวิชา'];
+                    const missingHeaders = requiredHeaders.filter(rh => !headers.includes(rh));
+                    if(missingHeaders.length > 0) {
+                        throw new Error(`ไฟล์ Excel ขาดคอลัมน์: ${missingHeaders.join(', ')}`);
+                    }
+
+                    const indices = {
+                        studentId: headers.indexOf('รหัสนักเรียน'), studentName: headers.indexOf('ชื่อ สกุล'),
+                        percentage: headers.indexOf('เข้าเรียน(%)'), class: headers.indexOf('ชั้น'),
+                        courseId: headers.indexOf('รหัสวิชา'), courseName: headers.indexOf('ชื่อวิชา')
+                    };
+
+                    const students = jsonData.slice(1).map(row => {
+                        if (row && row[indices.studentId]) {
+                            return {
+                                studentId: row[indices.studentId], studentName: row[indices.studentName],
+                                attendancePercent: parseFloat(row[indices.percentage]) * 100, class: row[indices.class],
+                                courseId: row[indices.courseId], courseName: row[indices.courseName]
+                            };
+                        }
+                        return null;
+                    }).filter(Boolean);
+                    
+                    if (students.length === 0) {
+                         statusDiv.innerHTML = '<p class="text-yellow-600">ไม่พบข้อมูลนักเรียนในไฟล์ที่อัปโหลด</p>';
+                         return;
+                    }
+
+                    const result = await apiFetch('submitData', 'POST', { semester, academicYear, teacherId, teacherName, students });
+
+                    if (result) {
+                        const { recordsAdded = 0, recordsUpdated = 0 } = result;
+                        statusDiv.innerHTML = `<p class="text-green-600">บันทึกข้อมูลสำเร็จ! (เพิ่มใหม่ ${recordsAdded}, อัปเดต ${recordsUpdated} รายการ)</p>`;
+                        document.getElementById('teacherId').value = '';
+                        document.getElementById('teacherName').value = '';
+                        document.getElementById('excelFile').value = '';
+                        loadStudentStats();
+                    } else {
+                        throw new Error('การบันทึกข้อมูลล้มเหลว');
+                    }
+                } catch (error) {
+                    statusDiv.innerHTML = `<p class="text-red-500">${error.message}</p>`;
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function downloadTemplate() {
+            const templateData = [
+                ['แบบแจ้งรายชื่อนักเรียนที่มีเวลาเรียนไม่ครบร้อยละ 80'], ['ภาคเรียนที่  ...  ปีการศึกษา ....'], [],
+                ['', 'ครูผู้สอน', 'กรอกชื่อครูที่นี่', 'รหัสครู', 'กรอกรหัสครูที่นี่'], [],
+                ['ที่', 'รหัสนักเรียน', 'ชื่อ สกุล', 'เข้าเรียน', 'เข้าเรียน(%)', 'ชั้น', 'รหัสวิชา', 'ชื่อวิชา'],
+                [1, '12345', 'เด็กชายตัวอย่าง เรียนดี', 23, 0.7667, '1/1', 'ท21101', 'ภาษาไทยพื้นฐาน'],
+                [2, '12346', 'เด็กหญิงตัวอย่าง ตั้งใจ', 15, 0.50, '1/1', 'ค21101', 'คณิตศาสตร์พื้นฐาน'],
+            ];
+            const ws = XLSX.utils.aoa_to_sheet(templateData);
+            ws['!cols'] = [ { wch: 5 }, { wch: 15 }, { wch: 30 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 15 }, { wch: 30 }];
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "แบบฟอร์ม");
+            XLSX.writeFile(wb, "Template-รายชื่อนักเรียน.xlsx");
+        }
+
+
+        // --- ADMIN FUNCTIONS ---
+        function loginAdmin() {
+            const user = document.getElementById('adminUser').value;
+            const pass = document.getElementById('adminPass').value;
+            if (user === 'admin' && pass === 'admin1234') {
+                document.getElementById('admin-login').classList.add('hidden');
+                document.getElementById('admin-panel').classList.remove('hidden');
+                loadAdminPanel();
+            } else {
+                document.getElementById('admin-login-error').textContent = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+            }
+        }
+        
+        async function loadAdminPanel() {
+            loadAdminAnnouncements();
+            loadAdminStudentList();
+        }
+
+        async function loadAdminAnnouncements() {
+            const listDiv = document.getElementById('admin-announcements-list');
+            const announcements = await apiFetch('getAnnouncements');
+            if(announcements) {
+                listDiv.innerHTML = announcements.map(item => `
+                    <div class="flex justify-between items-center p-2 border rounded-md">
+                        <span>${item.text || ''}</span>
+                        <button onclick="deleteAnnouncement('${item.id}')" class="text-red-500 hover:text-red-700">ลบ</button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        async function addAnnouncement() {
+            const input = document.getElementById('announcementInput');
+            if(!input.value.trim()) return;
+            if (await apiFetch('addAnnouncement', 'POST', { text: input.value.trim() })) {
+                input.value = '';
+                loadAdminAnnouncements();
+                loadAnnouncements();
+            }
+        }
+        
+        async function deleteAnnouncement(id) {
+            if (await customConfirm('คุณต้องการลบประกาศนี้ใช่หรือไม่?')) {
+                if (await apiFetch('deleteAnnouncement', 'POST', { id })) {
+                    loadAdminAnnouncements();
+                    loadAnnouncements();
+                }
+            }
+        }
+
+        async function loadAdminStudentList() {
+            const data = await apiFetch('getAllStudents');
+            if (data) {
+                allStudentDataForAdmin = data;
+                renderStudentTable(data);
+            }
+        }
+        
+        async function approveRequest(studentId, courseId) {
+            if(await customConfirm(`ยืนยันการอนุมัติสิทธิ์สอบให้นักเรียน (${studentId}) สำหรับวิชา (${courseId})?`)) {
+                const result = await apiFetch('updateStatus', 'POST', { studentId, courseId, status: 'Approved' });
+                if (result) {
+                    loadAdminStudentList();
+                    loadStudentStats();
+                }
+            }
+        }
+        
+        async function cancelApproval(studentId, courseId) {
+            if(await customConfirm(`ยืนยันการยกเลิกอนุมัติสำหรับนักเรียน (${studentId}) วิชา (${courseId})?`)) {
+                const result = await apiFetch('updateStatus', 'POST', { studentId, courseId, status: '' });
+                if (result) {
+                    loadAdminStudentList();
+                    loadStudentStats();
+                }
+            }
+        }
+
+        function renderStudentTable(data) {
+            const tbody = document.getElementById('admin-student-list');
+            tbody.innerHTML = data.map(row => {
+                let actionButtonHtml = '';
+                if (row.status === 'Approved') {
+                    actionButtonHtml = `<button onclick="cancelApproval('${row.studentId}', '${row.courseId}')" class="btn-action btn-cancel">ยกเลิก</button>`;
+                } else if (row.attendancePercent >= 60) {
+                    actionButtonHtml = `<button onclick="approveRequest('${row.studentId}', '${row.courseId}')" class="btn-action btn-approve">อนุมัติ</button>`;
+                } else {
+                    actionButtonHtml = `<button class="btn-action" disabled>-</button>`;
+                }
+
+                return `
+                    <tr>
+                        <td class="py-2 px-4 border-b">${row.studentId}</td>
+                        <td class="py-2 px-4 border-b">${row.studentName} (${row.class})</td>
+                        <td class="py-2 px-4 border-b">${row.courseId} - ${row.courseName}</td>
+                        <td class="py-2 px-4 border-b">${row.attendancePercent ? row.attendancePercent.toFixed(2) : 'N/A'}</td>
+                        <td class="py-2 px-4 border-b">${row.status === 'Approved' ? '<span class="text-green-600 font-semibold">อนุมัติแล้ว</span>' : 'รอพิจารณา'}</td>
+                        <td class="py-2 px-4 border-b">${actionButtonHtml}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        function filterAndPrint() {
+            const classFilterText = document.getElementById('classFilter').value.trim();
+            const semesterFilter = document.getElementById('printSemester').value;
+            const yearFilter = document.getElementById('printAcademicYear').value;
+
+            let filteredData = allStudentDataForAdmin;
+            if (classFilterText) {
+                filteredData = filteredData.filter(s => s.class && s.class.includes(classFilterText));
+            }
+            if (semesterFilter) {
+                filteredData = filteredData.filter(s => s.semester == semesterFilter);
+            }
+            if (yearFilter) {
+                filteredData = filteredData.filter(s => s.academicYear == yearFilter);
+            }
+            
+            const groupedStudents = filteredData.reduce((acc, row) => {
+                if (!acc[row.studentId]) {
+                    acc[row.studentId] = {
+                        id: row.studentId,
+                        name: row.studentName,
+                        class: row.class,
+                        courses: []
+                    };
+                }
+                
+                let statusText = '';
+                if (row.status === 'Approved') {
+                    statusText = 'อนุญาตให้เข้าสอบ';
+                } else if (row.attendancePercent >= 60) {
+                    statusText = 'ให้ดำเนินการขอมีสิทธิ์สอบ';
+                } else {
+                    statusText = 'รอเรียนซ้ำรายวิชา';
+                }
+
+                acc[row.studentId].courses.push({
+                    name: `${row.courseId} - ${row.courseName}`,
+                    percent: row.attendancePercent ? row.attendancePercent.toFixed(2) : 'N/A',
+                    status: statusText
+                });
+                return acc;
+            }, {});
+
+            const printDate = new Date().toLocaleDateString('th-TH', {
+                year: 'numeric', month: 'long', day: 'numeric',
+            });
+            
+            let semesterText = semesterFilter ? `ภาคเรียนที่ ${semesterFilter}` : "";
+            let yearText = yearFilter ? `ปีการศึกษา ${yearFilter}` : "";
+            let headerTitle = `ประกาศรายชื่อนักเรียนที่มีเวลาเรียนไม่ครบ 80%`;
+            let subHeader = [semesterText, yearText].filter(Boolean).join(' ');
+
+
+            const printWindow = window.open('', '', 'height=800,width=1100');
+            
+            let tableRows = '';
+            Object.values(groupedStudents).forEach((student, index) => {
+                const coursesHtml = student.courses.map(course => 
+                    `<div>${course.name} (<b>${course.percent}%</b>)</div>`
+                ).join('');
+                
+                const statusesHtml = student.courses.map(course => 
+                    `<div>${course.status}</div>`
+                ).join('');
+
+                tableRows += `
+                    <tr>
+                        <td style="text-align: center; vertical-align: top;">${index + 1}</td>
+                        <td style="vertical-align: top;">${student.id}</td>
+                        <td style="vertical-align: top;">${student.name}</td>
+                        <td style="text-align: center; vertical-align: top;">${student.class}</td>
+                        <td>${coursesHtml}</td>
+                        <td>${statusesHtml}</td>
+                    </tr>
+                `;
+            });
+
+            const reportHtml = `
+                <html>
+                <head>
+                    <title>${headerTitle}</title>
+                    <link rel="preconnect" href="https://fonts.googleapis.com">
+                    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+                    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+                    <style>
+                        @page { 
+                            size: A4 landscape; 
+                            margin: 20px;
+                        }
+                        body { 
+                            font-family: 'Sarabun', sans-serif; 
+                        }
+                        .header { text-align: center; margin-bottom: 20px; }
+                        .header img { width: 100px; height: auto; }
+                        .header h1 { font-size: 18px; font-weight: bold; margin: 5px 0; }
+                        .header p { font-size: 16px; margin: 0; }
+                        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+                        th, td { border: 1px solid #333; padding: 6px; text-align: left; word-break: break-word; }
+                        th { background-color: #f2f2f2; font-weight: bold; text-align: center; }
+                        .footer { margin-top: 40px; width: 100%; font-size: 14px; page-break-inside: avoid; }
+                        .signature-container {
+                            display: flex;
+                            justify-content: space-between;
+                            margin-top: 60px;
+                        }
+                        .signature-block {
+                            text-align: center;
+                            width: 30%;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <img src="https://i.postimg.cc/fbhJ98Xj/2.png" alt="Logo">
+                        <h1>${headerTitle}</h1>
+                        <p>${subHeader}</p>
+                        <p>โรงเรียนนาดูนประชาสรรพ์ จังหวัดมหาสารคาม</p>
+                        <p>สำนักงานเขตพื้นที่การศึกษามัธยมศึกษามหาสารคาม</p>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 5%;">ลำดับ</th>
+                                <th style="width: 10%;">เลขประจำตัว</th>
+                                <th style="width: 20%;">ชื่อ-สกุล</th>
+                                <th style="width: 8%;">ชั้น</th>
+                                <th>รายวิชาและเวลาเรียน (%)</th>
+                                <th style="width: 20%;">สถานะ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows.length > 0 ? tableRows : '<tr><td colspan="6" style="text-align: center;">ไม่พบข้อมูล</td></tr>'}
+                        </tbody>
+                    </table>
+                    <div class="footer">
+                        <div class="signature-container">
+                            <div class="signature-block">
+                                <p>ลงชื่อ ........................................................</p>
+                                <p>(นายชัยวัฒน์ สุบัติคำ)</p>
+                                <p>เจ้าหน้าที่ทะเบียน</p>
+                            </div>
+                            <div class="signature-block">
+                                <p>ลงชื่อ ........................................................</p>
+                                <p>(นางนงนุช นามภูษา)</p>
+                                <p>รองผู้อำนวยการ กลุ่มบริหารวิชาการ</p>
+                            </div>
+                            <div class="signature-block">
+                                <p>ลงชื่อ ........................................................</p>
+                                <p>(นายเฉลิมชัย สืบสุนทร)</p>
+                                <p>ผู้อำนวยการโรงเรียน</p>
+                            </div>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `;
+
+            printWindow.document.write(reportHtml);
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => {
+                printWindow.print();
+                printWindow.close();
+            }, 500);
+        }
+
+        // --- ANNOUNCEMENTS FOR MAIN PAGE ---
+        async function loadAnnouncements() {
+             const mainSection = document.getElementById('announcement-section');
+             const mainContentDiv = document.getElementById('announcement-content');
+             
+             showLoading(true);
+             try {
+                const announcements = await apiFetch('getAnnouncements');
+                
+                if(announcements && announcements.length > 0) {
+                    const announcementHtml = announcements.map(item => {
+                        let postDate = 'ไม่มีข้อมูลวันที่';
+                        if (item.timestamp) {
+                            const dateObj = new Date(item.timestamp);
+                            if (!isNaN(dateObj.getTime())) {
+                                postDate = dateObj.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+                            }
+                        }
+                        return `<div class="p-2 rounded-md bg-purple-50">
+                                    <p>${item.text || ''}</p>
+                                    <p class="text-xs text-purple-600 text-right mt-1">ประกาศเมื่อ: ${postDate}</p>
+                                </div>`
+                    }).join('');
+                    
+                    mainContentDiv.innerHTML = announcementHtml;
+                    mainSection.classList.remove('hidden');
+
+                } else {
+                    mainSection.classList.add('hidden');
+                }
+             } finally {
+                showLoading(false);
+             }
+        }
+        
+        // --- INITIALIZATION ---
+        function populateYearDropdowns() {
+            const yearSelects = [document.getElementById('academicYear'), document.getElementById('printAcademicYear'), document.getElementById('statsAcademicYear')];
+            const startYear = 2568;
+            const endYear = 2578;
+            const currentBuddhistYear = new Date().getFullYear() + 543;
+
+            yearSelects.forEach(select => {
+                if(select.id.includes('Year')) { // Clear previous options
+                    select.innerHTML = '';
+                }
+
+                if(select.id === 'printAcademicYear' || select.id === 'statsAcademicYear') { 
+                     const allOption = document.createElement('option');
+                     allOption.value = '';
+                     allOption.textContent = 'ทุกปีการศึกษา';
+                     select.appendChild(allOption);
+                }
+                for (let i = startYear; i <= endYear; i++) {
+                    const option = document.createElement('option');
+                    option.value = i;
+                    option.textContent = i;
+                    select.appendChild(option);
+                }
+                
+                if (currentBuddhistYear >= startYear && currentBuddhistYear <= endYear) {
+                    select.value = currentBuddhistYear;
+                } else {
+                    select.value = startYear;
+                }
+
+                if(select.id === 'printAcademicYear' || select.id === 'statsAcademicYear') {
+                    select.value = ''; // Default print/stats to all years
+                }
+            });
+        }
+
+        window.onload = () => {
+             if (!GAS_URL) {
+                document.body.innerHTML = `<div class="p-8 text-center text-red-600 bg-red-100 rounded-lg max-w-2xl mx-auto mt-10">
+                    <h1 class="text-2xl font-bold">การตั้งค่าไม่สมบูรณ์</h1>
+                    <p class="mt-2">กรุณาตั้งค่า Google Apps Script URL ในไฟล์ index.html</p></div>`;
+            } else {
+                populateYearDropdowns();
+                loadAnnouncements();
+                loadStudentStats();
+            }
+        };
+    </script>
+</body>
+</html>
+

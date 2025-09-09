@@ -47,6 +47,9 @@
         .stat-card-active {
             box-shadow: 0 0 0 2px;
         }
+        th.sortable:hover {
+            background-color: #e5e7eb;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
@@ -67,13 +70,13 @@
         <!-- Tabs -->
         <div class="mb-6 border-b border-gray-200">
             <nav class="flex space-x-4" aria-label="Tabs">
-                <button onclick="changeTab('student')" class="tab-button active text-lg py-3 px-4 border-b-2 border-transparent hover:border-gray-300 hover:text-gray-600 transition duration-150 ease-in-out">
+                <button data-tab="student" class="tab-button active text-lg py-3 px-4 border-b-2 border-transparent hover:border-gray-300 hover:text-gray-600 transition duration-150 ease-in-out">
                     สำหรับนักเรียน
                 </button>
-                <button onclick="changeTab('teacher')" class="tab-button text-lg py-3 px-4 border-b-2 border-transparent hover:border-gray-300 hover:text-gray-600 transition duration-150 ease-in-out">
+                <button data-tab="teacher" class="tab-button text-lg py-3 px-4 border-b-2 border-transparent hover:border-gray-300 hover:text-gray-600 transition duration-150 ease-in-out">
                     สำหรับครู
                 </button>
-                <button onclick="changeTab('admin')" class="tab-button text-lg py-3 px-4 border-b-2 border-transparent hover:border-gray-300 hover:text-gray-600 transition duration-150 ease-in-out">
+                <button data-tab="admin" class="tab-button text-lg py-3 px-4 border-b-2 border-transparent hover:border-gray-300 hover:text-gray-600 transition duration-150 ease-in-out">
                     สำหรับผู้ดูแลระบบ
                 </button>
             </nav>
@@ -166,17 +169,39 @@
                     <p class="text-gray-600 mt-2" id="upload-period-message"></p>
                 </div>
                 <div class="mt-8 bg-white p-6 rounded-lg shadow-md">
-                    <h3 class="text-xl font-semibold mb-4">รายชื่อครูที่อัปโหลดข้อมูลแล้ว</h3>
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+                        <h3 class="text-xl font-semibold">สรุปการส่งข้อมูล (แยกตามกลุ่มสาระ)</h3>
+                        <div class="flex gap-2 mt-4 sm:mt-0">
+                            <select id="teacherStatsSemester" onchange="renderTeacherStatsDashboard()" class="px-4 py-2 border border-gray-300 rounded-md">
+                                <option value="">ทุกภาคเรียน</option>
+                                <option value="1">ภาคเรียนที่ 1</option>
+                                <option value="2">ภาคเรียนที่ 2</option>
+                            </select>
+                            <select id="teacherStatsAcademicYear" onchange="renderTeacherStatsDashboard()" class="px-4 py-2 border border-gray-300 rounded-md">
+                                <option value="">ทุกปีการศึกษา</option>
+                                <!-- Populated by JS -->
+                            </select>
+                        </div>
+                    </div>
+                    <div id="teacher-stats-by-area" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                        <!-- Dashboard cards will be populated here -->
+                    </div>
+                </div>
+                <div class="mt-8 bg-white p-6 rounded-lg shadow-md">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-xl font-semibold">รายชื่อครูที่อัปโหลดข้อมูลแล้ว</h3>
+                        <span id="uploaded-teachers-count" class="text-sm font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-md"></span>
+                    </div>
                     <div class="overflow-x-auto">
                         <table class="min-w-full bg-white">
                             <thead class="bg-gray-100">
-                                <tr>
-                                    <th class="py-2 px-4 text-center text-sm font-semibold text-gray-600">ลำดับ</th>
-                                    <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600">รหัสครู</th>
-                                    <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600">ชื่อ-สกุล</th>
-                                    <th class="py-2 px-4 text-center text-sm font-semibold text-gray-600">ภาคเรียน</th>
-                                    <th class="py-2 px-4 text-center text-sm font-semibold text-gray-600">ปีการศึกษา</th>
-                                    <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600">อัปเดตล่าสุด</th>
+                                <tr id="uploaded-teachers-list-header">
+                                    <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 cursor-pointer sortable" onclick="sortTeacherTable('teacherId')">รหัสครู<span id="sort-icon-teacherId"></span></th>
+                                    <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 cursor-pointer sortable" onclick="sortTeacherTable('teacherName')">ชื่อ-สกุล<span id="sort-icon-teacherName"></span></th>
+                                    <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 cursor-pointer sortable" onclick="sortTeacherTable('learningArea')">กลุ่มสาระ<span id="sort-icon-learningArea"></span></th>
+                                    <th class="py-2 px-4 text-center text-sm font-semibold text-gray-600 cursor-pointer sortable" onclick="sortTeacherTable('termYear')">ภาคเรียน/ปี<span id="sort-icon-termYear"></span></th>
+                                    <th class="py-2 px-4 text-center text-sm font-semibold text-gray-600 cursor-pointer sortable" onclick="sortTeacherTable('studentCount')">จำนวน (คน)<span id="sort-icon-studentCount"></span></th>
+                                    <th class="py-2 px-4 text-left text-sm font-semibold text-gray-600 cursor-pointer sortable" onclick="sortTeacherTable('timestamp')">อัปเดตล่าสุด<span id="sort-icon-timestamp"></span></th>
                                 </tr>
                             </thead>
                             <tbody id="uploaded-teachers-list">
@@ -315,6 +340,18 @@
         </div>
     </div>
     
+    <div id="teacher-list-by-area-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+        <div class="relative w-full max-w-xl bg-white rounded-lg shadow-xl">
+             <div class="flex justify-between items-center p-4 border-b">
+                 <h3 class="text-xl font-semibold text-gray-800" id="teacher-list-by-area-modal-title"></h3>
+                 <button onclick="closeTeacherListByAreaModal()" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-1.5 ml-auto inline-flex items-center">
+                     <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                 </button>
+             </div>
+             <div id="teacher-list-by-area-modal-content" class="p-6 max-h-[60vh] overflow-y-auto"></div>
+        </div>
+    </div>
+    
     <div id="teacher-student-list-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
         <div class="relative w-full max-w-3xl bg-white rounded-lg shadow-xl">
              <div class="flex justify-between items-center p-4 border-b">
@@ -362,6 +399,19 @@
         let statsChart = null;
         let currentTeacherData = [];
         let currentStudentSearchData = [];
+        let teacherSortColumn = 'timestamp';
+        let teacherSortDirection = 'desc';
+
+        // --- SORTING FUNCTION ---
+        function sortTeacherTable(column) {
+            if (teacherSortColumn === column) {
+                teacherSortDirection = teacherSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                teacherSortColumn = column;
+                teacherSortDirection = 'asc';
+            }
+            renderUploadedTeacherList();
+        }
 
         // --- CORE FUNCTIONS ---
         function showLoading(show) {
@@ -394,7 +444,7 @@
             document.querySelectorAll('[id$="-tab"]').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
             document.getElementById(`${tabName}-tab`).classList.remove('hidden');
-            document.querySelector(`button[onclick="changeTab('${tabName}')"]`).classList.add('active');
+            document.querySelector(`.tab-button[data-tab='${tabName}']`).classList.add('active');
         }
 
         function getEvaluationText(percentage, status) {
@@ -732,8 +782,11 @@
             const teacherId = document.getElementById('teacherId').value.trim();
             const semester = document.getElementById('semester').value;
             const academicYear = document.getElementById('academicYear').value;
-
-            if (!teacherId) {
+            await showTeacherStudentModal(teacherId, semester, academicYear);
+        }
+        
+        async function showTeacherStudentModal(teacherId, semester, academicYear) {
+             if (!teacherId) {
                 alert('กรุณากรอกรหัสครูผู้สอนเพื่อเรียกดูข้อมูล');
                 return;
             }
@@ -741,14 +794,14 @@
 
             if (data && data.length > 0) {
                 currentTeacherData = data; // Store data for filtering
-                const teacherName = data[0].teacherName || document.getElementById('teacherName').value.trim() || '...';
+                const teacherName = data[0].teacherName || '...';
                 const modal = document.getElementById('teacher-student-list-modal');
                 const title = document.getElementById('teacher-student-list-modal-title');
                 const content = document.getElementById('teacher-student-list-modal-content');
                 
                 title.innerHTML = `
                     <div>รายชื่อนักเรียนที่อัปโหลดโดย</div>
-                    <div class="text-sm font-normal text-gray-500">${teacherName} (${teacherId})</div>
+                    <div class="text-sm font-normal text-gray-500">${teacherName} (${teacherId}) - ภาคเรียน ${semester}/${academicYear}</div>
                 `;
                 
                 const approvedCount = data.filter(r => r.status === 'Approved').length;
@@ -781,9 +834,10 @@
                 filterTeacherStudentList('all'); // Initial table render
                 modal.classList.remove('hidden');
             } else {
-                alert(`ไม่พบข้อมูลนักเรียนที่อัปโหลดโดยรหัสครู: ${teacherId} ในภาคเรียนและปีการศึกษาที่เลือก`);
+                alert(`ไม่พบข้อมูลนักเรียนที่อัปโหลดโดยรหัสครู: ${teacherId} ในภาคเรียน ${semester}/${academicYear}`);
             }
         }
+
 
         function filterTeacherStudentList(filterType) {
             // Handle active state for summary cards
@@ -920,6 +974,7 @@
                         if (success) {
                             renderStudentStats();
                             renderUploadedTeacherList();
+                            renderTeacherStatsDashboard();
                         }
 
                     } else {
@@ -1319,6 +1374,24 @@
             }
         }
 
+        function getLearningArea(teacherId) {
+            if (!teacherId) return 'ไม่ระบุ';
+            if (teacherId.toUpperCase() === 'T451') return 'สุขศึกษาและพลศึกษา';
+            const prefix = teacherId.substring(0, 2).toUpperCase();
+            switch (prefix) {
+                case 'T1': return 'ภาษาไทย';
+                case 'T2': return 'คณิตศาสตร์';
+                case 'T3': return 'วิทยาศาสตร์และเทคโนโลยี';
+                case 'T4': return 'สังคมศึกษา';
+                case 'T5': return 'สุขศึกษาและพลศึกษา';
+                case 'T6': return 'ศิลปะ';
+                case 'T7': return 'การงานอาชีพ';
+                case 'T8': return 'ภาษาต่างประเทศ';
+                case 'T9': return 'กิจกรรมพัฒนาผู้เรียน';
+                default: return 'ไม่ระบุ';
+            }
+        }
+
         function renderUploadedTeacherList() {
             const tbody = document.getElementById('uploaded-teachers-list');
             if (!tbody) return;
@@ -1327,44 +1400,178 @@
 
             if (!data || data.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="6" class="text-center p-4 text-gray-500">ยังไม่มีครูอัปโหลดข้อมูล</td></tr>';
+                document.getElementById('uploaded-teachers-count').textContent = `0 รายการ`;
                 return;
             }
             
             const teacherUploads = data.reduce((acc, row) => {
-                if (!row.teacherId) return acc;
+                if (!row.teacherId || !row.semester || !row.academicYear) return acc;
                 const key = `${row.teacherId}-${row.semester}-${row.academicYear}`;
-                if (!acc[key] || new Date(row.timestamp) > new Date(acc[key].timestamp)) {
+                if (!acc[key]) {
                     acc[key] = {
                         teacherId: row.teacherId,
                         teacherName: row.teacherName,
                         semester: row.semester,
                         academicYear: row.academicYear,
-                        timestamp: row.timestamp
+                        timestamp: new Date(0),
+                        studentCount: 0
                     };
+                }
+                acc[key].studentCount++;
+                if (new Date(row.timestamp) > acc[key].timestamp) {
+                    acc[key].timestamp = new Date(row.timestamp);
                 }
                 return acc;
             }, {});
 
-            const sortedUploads = Object.values(teacherUploads).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            let uploadsArray = Object.values(teacherUploads);
             
-            tbody.innerHTML = sortedUploads.map((upload, index) => {
-                const updatedDate = upload.timestamp ? new Date(upload.timestamp).toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
+            // Sorting logic
+            uploadsArray.sort((a, b) => {
+                let valA, valB;
+
+                if (teacherSortColumn === 'termYear') {
+                    valA = `${a.academicYear}${a.semester}`;
+                    valB = `${b.academicYear}${b.semester}`;
+                } else if (teacherSortColumn === 'learningArea') {
+                    valA = getLearningArea(a.teacherId);
+                    valB = getLearningArea(b.teacherId);
+                } else {
+                    valA = a[teacherSortColumn];
+                    valB = b[teacherSortColumn];
+                }
+
+                let comparison = 0;
+                if (valA instanceof Date && valB instanceof Date) {
+                    comparison = valA.getTime() - valB.getTime();
+                } else if (typeof valA === 'number' && typeof valB === 'number') {
+                    comparison = valA - valB;
+                } else {
+                    comparison = String(valA).localeCompare(String(valB), 'th');
+                }
+                
+                return teacherSortDirection === 'asc' ? comparison : -comparison;
+            });
+
+            document.querySelectorAll('#uploaded-teachers-list-header th span').forEach(span => span.textContent = '');
+            const sortIcon = document.getElementById(`sort-icon-${teacherSortColumn}`);
+            if (sortIcon) {
+                sortIcon.textContent = teacherSortDirection === 'asc' ? ' ▲' : ' ▼';
+            }
+            
+            document.getElementById('uploaded-teachers-count').textContent = `${uploadsArray.length} รายการ`;
+
+            tbody.innerHTML = uploadsArray.map((upload) => {
+                const updatedDateTime = upload.timestamp > new Date(0) ? new Date(upload.timestamp).toLocaleString('th-TH', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', '') + ' น.' : 'N/A';
+                const yearShort = upload.academicYear ? String(upload.academicYear).slice(-2) : '';
                 return `
                     <tr>
-                        <td class="py-2 px-4 border-b text-center">${index + 1}</td>
                         <td class="py-2 px-4 border-b">${upload.teacherId}</td>
-                        <td class="py-2 px-4 border-b">${upload.teacherName}</td>
-                        <td class="py-2 px-4 border-b text-center">${upload.semester}</td>
-                        <td class="py-2 px-4 border-b text-center">${upload.academicYear}</td>
-                        <td class="py-2 px-4 border-b">${updatedDate}</td>
+                        <td class="py-2 px-4 border-b">
+                           <a href="#" onclick="event.preventDefault(); showTeacherStudentModal('${upload.teacherId}', '${upload.semester}', '${upload.academicYear}')" class="text-blue-600 hover:underline">${upload.teacherName}</a>
+                        </td>
+                        <td class="py-2 px-4 border-b">${getLearningArea(upload.teacherId)}</td>
+                        <td class="py-2 px-4 border-b text-center">${upload.semester}/${yearShort}</td>
+                        <td class="py-2 px-4 border-b text-center">${upload.studentCount}</td>
+                        <td class="py-2 px-4 border-b">${updatedDateTime}</td>
                     </tr>
                 `;
             }).join('');
         }
 
+        function fillTeacherForm(id, name, sem, year) {
+            document.getElementById('teacherId').value = id;
+            document.getElementById('teacherName').value = name;
+            document.getElementById('semester').value = sem;
+            document.getElementById('academicYear').value = year;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        function closeTeacherListByAreaModal() {
+            document.getElementById('teacher-list-by-area-modal').classList.add('hidden');
+        }
+        
+        function renderTeacherStatsDashboard() {
+            const dashboardDiv = document.getElementById('teacher-stats-by-area');
+            const semester = document.getElementById('teacherStatsSemester').value;
+            const academicYear = document.getElementById('teacherStatsAcademicYear').value;
+
+            let data = allStudentDataForStats;
+            if (semester) {
+                data = data.filter(s => s.semester == semester);
+            }
+            if (academicYear) {
+                data = data.filter(s => s.academicYear == academicYear);
+            }
+
+            if (data.length === 0) {
+                dashboardDiv.innerHTML = '<p class="col-span-full text-center text-gray-500 py-4">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</p>';
+                return;
+            }
+
+            const teachersByArea = data.reduce((acc, row) => {
+                if (!row.teacherId) return acc;
+                const area = getLearningArea(row.teacherId);
+                if(area === 'ไม่ระบุ') return acc;
+                if (!acc[area]) {
+                    acc[area] = new Set();
+                }
+                acc[area].add(row.teacherId);
+                return acc;
+            }, {});
+
+            dashboardDiv.innerHTML = '';
+            const sortedAreas = Object.keys(teachersByArea).sort();
+
+            for (const area of sortedAreas) {
+                const count = teachersByArea[area].size;
+                const cardHtml = `
+                    <div onclick="showTeacherListByAreaModal('${area}')" class="p-4 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 text-center">
+                        <p class="text-2xl font-bold text-gray-800">${count}</p>
+                        <p class="text-sm text-gray-600">${area}</p>
+                    </div>
+                `;
+                dashboardDiv.innerHTML += cardHtml;
+            }
+        }
+
+        function showTeacherListByAreaModal(area) {
+            const modal = document.getElementById('teacher-list-by-area-modal');
+            const title = document.getElementById('teacher-list-by-area-modal-title');
+            const content = document.getElementById('teacher-list-by-area-modal-content');
+            const semester = document.getElementById('teacherStatsSemester').value;
+            const academicYear = document.getElementById('teacherStatsAcademicYear').value;
+
+            title.textContent = `รายชื่อครูในกลุ่มสาระ: ${area}`;
+            
+            let data = allStudentDataForStats;
+            if (semester) {
+                data = data.filter(s => s.semester == semester);
+            }
+            if (academicYear) {
+                data = data.filter(s => s.academicYear == academicYear);
+            }
+
+            const teachers = data.reduce((acc, row) => {
+                if (getLearningArea(row.teacherId) === area) {
+                    if (!acc[row.teacherId]) {
+                        acc[row.teacherId] = row.teacherName;
+                    }
+                }
+                return acc;
+            }, {});
+
+            const teacherListHtml = Object.entries(teachers).map(([id, name]) => 
+                `<li class="p-2 border-b">${name} (${id})</li>`
+            ).join('');
+
+            content.innerHTML = `<ul class="list-none space-y-1">${teacherListHtml || '<li class="p-2">ไม่พบข้อมูล</li>'}</ul>`;
+            modal.classList.remove('hidden');
+        }
+
         // --- INITIALIZATION ---
         function populateYearDropdowns() {
-            const yearSelects = [document.getElementById('academicYear'), document.getElementById('printAcademicYear'), document.getElementById('statsAcademicYear')];
+            const yearSelects = [document.getElementById('academicYear'), document.getElementById('printAcademicYear'), document.getElementById('statsAcademicYear'), document.getElementById('teacherStatsAcademicYear')];
             const startYear = 2568;
             const endYear = 2578;
             const currentBuddhistYear = new Date().getFullYear() + 543;
@@ -1374,7 +1581,7 @@
                     select.innerHTML = '';
                 }
 
-                if(select.id === 'printAcademicYear' || select.id === 'statsAcademicYear') { 
+                if(['printAcademicYear', 'statsAcademicYear', 'teacherStatsAcademicYear'].includes(select.id)) { 
                      const allOption = document.createElement('option');
                      allOption.value = '';
                      allOption.textContent = 'ทุกปีการศึกษา';
@@ -1393,19 +1600,28 @@
                     select.value = startYear;
                 }
 
-                if(select.id === 'printAcademicYear' || select.id === 'statsAcademicYear') {
-                    select.value = ''; // Default print/stats to all years
+                if(['printAcademicYear', 'statsAcademicYear', 'teacherStatsAcademicYear'].includes(select.id)) {
+                    select.value = ''; // Default filters to all years
                 }
             });
         }
 
         async function initializeApp() {
             populateYearDropdowns();
+            
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.addEventListener('click', () => {
+                    const tabName = button.getAttribute('data-tab');
+                    changeTab(tabName);
+                });
+            });
+
             const dataLoaded = await loadInitialData();
             
             if (dataLoaded) {
                  renderStudentStats();
                  renderUploadedTeacherList();
+                 renderTeacherStatsDashboard();
             }
             loadAnnouncements();
             checkUploadSchedule();

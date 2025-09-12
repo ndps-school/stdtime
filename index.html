@@ -107,6 +107,22 @@
                     </div>
                 </div>
 
+                <!-- Student Stats by Grade Section -->
+                <div id="student-stats-by-grade-section" class="mb-6 bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-2xl font-semibold mb-4">สถิติแยกตามระดับชั้น</h2>
+                    <div id="stats-by-grade-content" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+                        <!-- Grade stats will be populated here -->
+                    </div>
+                </div>
+                
+                <!-- Student Stats Summary Section -->
+                <div id="student-stats-summary-section" class="mb-6 bg-white p-6 rounded-lg shadow-md">
+                    <h2 class="text-2xl font-semibold mb-4">สรุปสถิติภาพรวม</h2>
+                    <div id="stats-summary-content" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <!-- Summary stats will be populated here -->
+                    </div>
+                </div>
+
                 <div class="bg-white p-6 rounded-lg shadow-md">
                     <h2 class="text-2xl font-semibold mb-4">ตรวจสอบข้อมูลนักเรียนที่มีเวลาเรียนไม่ครบ 80%</h2>
                     <div class="flex flex-col sm:flex-row gap-4">
@@ -520,15 +536,27 @@
                     filteredData = filteredData.filter(s => s.academicYear == academicYear);
                 }
 
+                if (statsChart) {
+                    statsChart.destroy();
+                    statsChart = null;
+                }
+
                 if (filteredData.length === 0) {
                     statsDiv.innerHTML = '<p class="text-center text-gray-500 py-10">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</p>';
-                    if(statsChart) {
-                        statsChart.destroy();
-                        statsChart = null;
-                    }
+                    renderStudentStatsByGrade(); 
+                    renderStudentStatsSummary();
                     return;
                 }
 
+                // Ensure canvas exists
+                let canvas = document.getElementById('stats-chart');
+                if (!canvas) {
+                    statsDiv.innerHTML = ''; // Clear the "no data" message
+                    canvas = document.createElement('canvas');
+                    canvas.id = 'stats-chart';
+                    statsDiv.appendChild(canvas);
+                }
+                
                 const studentsByClass = filteredData.reduce((acc, student) => {
                     const className = student.class;
                     if (className && !acc[className]) acc[className] = new Set();
@@ -540,17 +568,9 @@
                 
                 const labels = sortedClasses.map(name => `ห้อง ${name}`);
                 const chartData = sortedClasses.map(name => studentsByClass[name].size);
-                
-                const canvas = document.getElementById('stats-chart');
-                if (!canvas) {
-                    throw new Error("Canvas element not found in DOM.");
-                }
-                statsDiv.innerHTML = '';
-                statsDiv.appendChild(canvas);
+                                
                 const ctx = canvas.getContext('2d');
-                
-                if(statsChart) statsChart.destroy();
-                
+                                
                 Chart.defaults.font.family = "'IBM Plex Sans Thai', 'sans-serif'";
 
                 const vibrantColors = [
@@ -603,12 +623,124 @@
                         }
                     }
                 });
+                renderStudentStatsByGrade();
+                renderStudentStatsSummary();
             } catch (error) {
                 console.error("Error loading student stats chart:", error);
                 if (statsDiv) {
                     statsDiv.innerHTML = '<p class="text-center text-red-500 py-10">เกิดข้อผิดพลาดในการแสดงผลสถิติ</p>';
                 }
             }
+        }
+
+        function renderStudentStatsByGrade() {
+            const statsDiv = document.getElementById('stats-by-grade-content');
+            const semester = document.getElementById('statsSemester').value;
+            const academicYear = document.getElementById('statsAcademicYear').value;
+
+            let filteredData = allStudentDataForStats;
+            if (semester) {
+                filteredData = filteredData.filter(s => s.semester == semester);
+            }
+            if (academicYear) {
+                filteredData = filteredData.filter(s => s.academicYear == academicYear);
+            }
+
+            if (filteredData.length === 0) {
+                statsDiv.innerHTML = '<p class="col-span-full text-center text-gray-500 py-4">ไม่พบข้อมูล</p>';
+                return;
+            }
+
+            const studentsByGrade = filteredData.reduce((acc, student) => {
+                if (student.class) {
+                    const gradeMatch = String(student.class).match(/ม\.(\d+)/);
+                    if (gradeMatch) {
+                        const grade = `ม.${gradeMatch[1]}`;
+                        if (!acc[grade]) acc[grade] = new Set();
+                        acc[grade].add(student.studentId);
+                    }
+                }
+                return acc;
+            }, {});
+
+            const sortedGrades = Object.keys(studentsByGrade).sort((a, b) => {
+                 const numA = parseInt(a.replace('ม.', ''));
+                 const numB = parseInt(b.replace('ม.', ''));
+                 return numA - numB;
+            });
+            
+            let statsHtml = '';
+            if (sortedGrades.length === 0) {
+                 statsHtml = '<p class="col-span-full text-center text-gray-500 py-4">ไม่พบข้อมูลระดับชั้น</p>';
+            } else {
+                sortedGrades.forEach(grade => {
+                    const count = studentsByGrade[grade].size;
+                    statsHtml += `
+                        <div class="p-4 bg-indigo-50 rounded-lg text-center shadow-sm border border-indigo-100">
+                            <p class="text-3xl font-bold text-indigo-600">${count}</p>
+                            <p class="text-md font-semibold text-indigo-800">${grade}</p>
+                        </div>
+                    `;
+                });
+            }
+            statsDiv.innerHTML = statsHtml;
+        }
+
+        function renderStudentStatsSummary() {
+            const statsDiv = document.getElementById('stats-summary-content');
+            const semester = document.getElementById('statsSemester').value;
+            const academicYear = document.getElementById('statsAcademicYear').value;
+
+            let filteredData = allStudentDataForStats;
+            if (semester) {
+                filteredData = filteredData.filter(s => s.semester == semester);
+            }
+            if (academicYear) {
+                filteredData = filteredData.filter(s => s.academicYear == academicYear);
+            }
+
+            if (filteredData.length === 0) {
+                statsDiv.innerHTML = '<p class="col-span-full text-center text-gray-500 py-4">ไม่พบข้อมูล</p>';
+                return;
+            }
+
+            const juniorHighStudents = new Set();
+            const seniorHighStudents = new Set();
+            const allStudents = new Set();
+
+            filteredData.forEach(student => {
+                allStudents.add(student.studentId);
+                if (student.class) {
+                    const gradeMatch = String(student.class).match(/ม\.(\d+)/);
+                    if (gradeMatch) {
+                        const grade = parseInt(gradeMatch[1]);
+                        if (grade >= 1 && grade <= 3) {
+                            juniorHighStudents.add(student.studentId);
+                        } else if (grade >= 4 && grade <= 6) {
+                            seniorHighStudents.add(student.studentId);
+                        }
+                    }
+                }
+            });
+
+            const juniorCount = juniorHighStudents.size;
+            const seniorCount = seniorHighStudents.size;
+            const totalCount = allStudents.size;
+
+            statsDiv.innerHTML = `
+                <div class="p-4 bg-teal-50 rounded-lg text-center shadow-sm border border-teal-100">
+                    <p class="text-3xl font-bold text-teal-600">${juniorCount}</p>
+                    <p class="text-md font-semibold text-teal-800">รวม ม.ต้น</p>
+                </div>
+                <div class="p-4 bg-sky-50 rounded-lg text-center shadow-sm border border-sky-100">
+                    <p class="text-3xl font-bold text-sky-600">${seniorCount}</p>
+                    <p class="text-md font-semibold text-sky-800">รวม ม.ปลาย</p>
+                </div>
+                <div class="p-4 bg-rose-50 rounded-lg text-center shadow-sm border border-rose-100">
+                    <p class="text-3xl font-bold text-rose-600">${totalCount}</p>
+                    <p class="text-md font-semibold text-rose-800">รวมทั้งหมด</p>
+                </div>
+            `;
         }
 
         async function loadInitialData() {
@@ -1749,8 +1881,4 @@
     </script>
 </body>
 </html>
-
-
-
-
 

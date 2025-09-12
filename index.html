@@ -1164,10 +1164,28 @@
                     name: `${row.courseId} - ${row.courseName}`,
                     percent: row.attendancePercent ? row.attendancePercent.toFixed(2) : 'N/A',
                     status: statusText,
-                    teacherName: teacherName
+                    teacherName: teacherName,
+                    teacherId: row.teacherId
                 });
                 return acc;
             }, {});
+
+            // Sort courses by learning area
+            const learningAreaOrder = [
+                'ภาษาไทย', 'คณิตศาสตร์', 'วิทยาศาสตร์และเทคโนโลยี', 'สังคมศึกษา',
+                'สุขศึกษาและพลศึกษา', 'ศิลปะ', 'การงานอาชีพ', 'ภาษาต่างประเทศ',
+                'กิจกรรมพัฒนาผู้เรียน', 'ไม่ระบุ'
+            ];
+
+            Object.values(groupedStudents).forEach(student => {
+                student.courses.sort((a, b) => {
+                    const areaA = getLearningArea(a.teacherId);
+                    const areaB = getLearningArea(b.teacherId);
+                    const indexA = learningAreaOrder.indexOf(areaA);
+                    const indexB = learningAreaOrder.indexOf(areaB);
+                    return indexA - indexB;
+                });
+            });
 
             const printDate = new Date().toLocaleDateString('th-TH', {
                 year: 'numeric', month: 'long', day: 'numeric',
@@ -1658,8 +1676,4 @@
     </script>
 </body>
 </html>
-
-
-
-
 

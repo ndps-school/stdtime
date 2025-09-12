@@ -1377,11 +1377,11 @@
             
             let tableRows = '';
             Object.values(groupedStudents).forEach((student, index) => {
-                const coursesHtml = student.courses.map(course => {
+                const coursesHtml = student.courses.map((course, courseIndex) => {
                     const isLowAttendance = parseFloat(course.percent) < 60;
                     const style = isLowAttendance ? ' style="color: red;"' : '';
                     const teacherNameText = course.teacherName ? ` | ${course.teacherName}` : '';
-                    return `<div${style}>${course.name} (<b>${course.percent}%</b>)${teacherNameText}</div>`;
+                    return `<div${style}><b>${courseIndex + 1}.</b> ${course.name} (<b>${course.percent}%</b>)${teacherNameText}</div>`;
                 }).join('');
                 
                 const statusesHtml = student.courses.map(course => {
@@ -1395,7 +1395,7 @@
                         <td style="text-align: center; vertical-align: top;">${index + 1}</td>
                         <td style="vertical-align: top;">${student.id}</td>
                         <td style="vertical-align: top;">${student.name}</td>
-                        <td style="text-align: center; vertical-align: top;">${student.class}</td>
+                        <td style="text-align: center; vertical-align: top;">${student.class}<br><small>(${student.courses.length} วิชา)</small></td>
                         <td>${coursesHtml}</td>
                         <td>${statusesHtml}</td>
                     </tr>
@@ -1881,4 +1881,7 @@
     </script>
 </body>
 </html>
+
+"
+
 

@@ -811,27 +811,36 @@
                     <div class="text-sm font-normal text-gray-500">${teacherName} (${teacherId}) - ภาคเรียน ${semester}/${academicYear}</div>
                 `;
                 
+                const totalCount = data.length;
                 const approvedCount = data.filter(r => r.status === 'Approved').length;
                 const requestableCount = data.filter(r => r.attendancePercent >= 60 && r.status !== 'Approved').length;
                 const repeatCount = data.filter(r => r.attendancePercent < 60).length;
 
+                const approvedPercent = totalCount > 0 ? (approvedCount / totalCount * 100).toFixed(1) : '0.0';
+                const requestablePercent = totalCount > 0 ? (requestableCount / totalCount * 100).toFixed(1) : '0.0';
+                const repeatPercent = totalCount > 0 ? (repeatCount / totalCount * 100).toFixed(1) : '0.0';
+
+
                 const summaryHtml = `
                     <div id="teacher-summary-cards" class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 text-center">
                         <div id="teacher-stat-all" onclick="filterTeacherStudentList('all')" class="p-4 bg-blue-100 rounded-lg cursor-pointer border-2 border-blue-500 stat-card-active">
-                            <p class="text-2xl font-bold text-blue-800">${data.length}</p>
+                            <p class="text-2xl font-bold text-blue-800">${totalCount}</p>
                             <p class="text-sm text-blue-600">รายการทั้งหมด</p>
                         </div>
                         <div id="teacher-stat-approved" onclick="filterTeacherStudentList('approved')" class="p-4 bg-green-100 rounded-lg cursor-pointer border-2 border-transparent">
                             <p class="text-2xl font-bold text-green-800">${approvedCount}</p>
                             <p class="text-sm text-green-600">อนุมัติแล้ว</p>
+                            <p class="text-xs text-green-700 mt-1">(${approvedPercent}%)</p>
                         </div>
                         <div id="teacher-stat-requestable" onclick="filterTeacherStudentList('requestable')" class="p-4 bg-orange-100 rounded-lg cursor-pointer border-2 border-transparent">
                             <p class="text-2xl font-bold text-orange-800">${requestableCount}</p>
                             <p class="text-sm text-orange-600">มีสิทธิ์ขอสอบ</p>
+                            <p class="text-xs text-orange-700 mt-1">(${requestablePercent}%)</p>
                         </div>
                         <div id="teacher-stat-repeat" onclick="filterTeacherStudentList('repeat')" class="p-4 bg-red-100 rounded-lg cursor-pointer border-2 border-transparent">
                             <p class="text-2xl font-bold text-red-800">${repeatCount}</p>
                             <p class="text-sm text-red-600">ต้องเรียนซ้ำ</p>
+                            <p class="text-xs text-red-700 mt-1">(${repeatPercent}%)</p>
                         </div>
                     </div>
                     <div id="teacher-table-container"></div>
@@ -1740,6 +1749,7 @@
     </script>
 </body>
 </html>
+
 
 
 

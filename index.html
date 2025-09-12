@@ -263,6 +263,13 @@
                     <!-- Student Data Management -->
                     <div class="bg-white p-6 rounded-lg shadow-md">
                         <h3 class="text-xl font-semibold mb-4">จัดการข้อมูลนักเรียนและอนุมัติสิทธิ์สอบ</h3>
+                        
+                        <div class="flex flex-col sm:flex-row gap-2 mb-4 border-b pb-4">
+                            <input type="text" id="adminStudentSearch" class="flex-grow px-4 py-2 border border-gray-300 rounded-md" placeholder="ค้นหาด้วยเลขประจำตัวนักเรียน...">
+                            <button onclick="filterAdminStudentTable()" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">ค้นหา</button>
+                            <button onclick="resetAdminStudentTable()" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">แสดงทั้งหมด</button>
+                        </div>
+
                         <div class="flex flex-col sm:flex-row gap-2 mb-4">
                            <input type="text" id="classFilter" class="flex-grow px-4 py-2 border border-gray-300 rounded-md" placeholder="กรองตามชั้นเรียน (เช่น 1/2)">
                            <select id="printSemester" class="px-4 py-2 border border-gray-300 rounded-md">
@@ -1095,6 +1102,25 @@
             }
         }
 
+        function filterAdminStudentTable() {
+            const searchTerm = document.getElementById('adminStudentSearch').value.trim();
+            if (!searchTerm) {
+                renderStudentTable(allStudentDataForAdmin);
+                return;
+            }
+            const filteredData = allStudentDataForAdmin.filter(student => String(student.studentId).includes(searchTerm));
+            if (filteredData.length === 0) {
+                document.getElementById('admin-student-list').innerHTML = '<tr><td colspan="6" class="text-center p-4 text-gray-500">ไม่พบข้อมูลนักเรียนตามเงื่อนไขที่ค้นหา</td></tr>';
+            } else {
+                renderStudentTable(filteredData);
+            }
+        }
+
+        function resetAdminStudentTable() {
+            document.getElementById('adminStudentSearch').value = '';
+            renderStudentTable(allStudentDataForAdmin);
+        }
+
         function renderStudentTable(data) {
             const tbody = document.getElementById('admin-student-list');
             tbody.innerHTML = data.map(row => {
@@ -1187,6 +1213,14 @@
                 });
             });
 
+            // Estimate total pages for the print header
+            let effectiveRows = 0;
+            Object.values(groupedStudents).forEach(s => { 
+                effectiveRows += Math.max(1, s.courses.length); 
+            });
+            const rowsPerPage = 15; // Heuristic value for A4 landscape
+            const totalPages = Math.max(1, Math.ceil(effectiveRows / rowsPerPage));
+
             const printDate = new Date().toLocaleDateString('th-TH', {
                 year: 'numeric', month: 'long', day: 'numeric',
             });
@@ -1258,9 +1292,29 @@
                             text-align: center;
                             width: 30%;
                         }
+                        .page-number {
+                            position: fixed;
+                            top: 20px;
+                            right: 20px;
+                            font-size: 12px;
+                            display: none;
+                        }
+                        @media print {
+                            body {
+                                counter-reset: page;
+                            }
+                            .page-number {
+                                display: block;
+                            }
+                            .page-number::before {
+                                counter-increment: page;
+                                content: "หน้า " counter(page) " จาก ${totalPages}";
+                            }
+                        }
                     </style>
                 </head>
                 <body>
+                    <div class="page-number"></div>
                     <div class="header">
                         <img src="https://i.postimg.cc/fbhJ98Xj/2.png" alt="Logo">
                         <h1>${headerTitle}</h1>

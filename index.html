@@ -1221,8 +1221,9 @@
             const rowsPerPage = 15; // Heuristic value for A4 landscape
             const totalPages = Math.max(1, Math.ceil(effectiveRows / rowsPerPage));
 
-            const printDate = new Date().toLocaleDateString('th-TH', {
+            const printTimestamp = new Date().toLocaleString('th-TH', {
                 year: 'numeric', month: 'long', day: 'numeric',
+                hour: '2-digit', minute: '2-digit'
             });
             
             let semesterText = semesterFilter ? `ภาคเรียนที่ ${semesterFilter}` : "";
@@ -1281,6 +1282,7 @@
                         .header p { font-size: 16px; margin: 0; }
                         table { width: 100%; border-collapse: collapse; font-size: 12px; }
                         th, td { border: 1px solid #333; padding: 6px; text-align: left; word-break: break-word; }
+                        tr { page-break-inside: avoid; }
                         th { background-color: #f2f2f2; font-weight: bold; text-align: center; }
                         .footer { margin-top: 40px; width: 100%; font-size: 14px; page-break-inside: avoid; }
                         .signature-container {
@@ -1294,10 +1296,15 @@
                         }
                         .page-number {
                             position: fixed;
-                            top: 20px;
-                            right: 20px;
+                            bottom: 10px;
+                            right: 15px;
                             font-size: 12px;
                             display: none;
+                        }
+                        .print-timestamp {
+                            margin-top: 30px;
+                            text-align: right;
+                            font-size: 12px;
                         }
                         @media print {
                             body {
@@ -1354,6 +1361,9 @@
                                 <p>(นายเฉลิมชัย สืบสุนทร)</p>
                                 <p>ผู้อำนวยการโรงเรียน</p>
                             </div>
+                        </div>
+                        <div class="print-timestamp">
+                            พิมพ์เมื่อ ${printTimestamp} น.
                         </div>
                     </div>
                 </body>
@@ -1730,4 +1740,7 @@
     </script>
 </body>
 </html>
+
+
+
 

@@ -117,9 +117,30 @@
                 
                 <!-- Student Stats Summary Section -->
                 <div id="student-stats-summary-section" class="mb-6 bg-white p-6 rounded-lg shadow-md">
-                    <h2 class="text-2xl font-semibold mb-4">สรุปสถิติภาพรวม</h2>
+                    <h2 class="text-2xl font-semibold mb-4">จำนวนนักเรียนที่มีเวลาเรียนไม่ครบ 80%</h2>
                     <div id="stats-summary-content" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                         <!-- Summary stats will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Overall System Stats Summary Section -->
+                <div id="overall-system-stats-section" class="mb-6 bg-white p-6 rounded-lg shadow-md">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+                        <h2 class="text-2xl font-semibold">สถิตินักเรียนที่มีเวลาเรียนไม่ครบ 80% (ตามสถานะข้อมูล)</h2>
+                        <div class="flex gap-2 mt-4 sm:mt-0">
+                            <select id="overallStatsSemester" onchange="renderOverallSystemStats()" class="px-4 py-2 border border-gray-300 rounded-md">
+                                <option value="">ทุกภาคเรียน</option>
+                                <option value="1">ภาคเรียนที่ 1</option>
+                                <option value="2">ภาคเรียนที่ 2</option>
+                            </select>
+                            <select id="overallStatsAcademicYear" onchange="renderOverallSystemStats()" class="px-4 py-2 border border-gray-300 rounded-md">
+                                <option value="">ทุกปีการศึกษา</option>
+                                <!-- Populated by JS -->
+                            </select>
+                        </div>
+                    </div>
+                    <div id="overall-stats-content" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                        <!-- Overall summary stats will be populated here -->
                     </div>
                 </div>
 
@@ -280,10 +301,23 @@
                     <div class="bg-white p-6 rounded-lg shadow-md">
                         <h3 class="text-xl font-semibold mb-4">จัดการข้อมูลนักเรียนและอนุมัติสิทธิ์สอบ</h3>
                         
-                        <div class="flex flex-col sm:flex-row gap-2 mb-4 border-b pb-4">
-                            <input type="text" id="adminStudentSearch" class="flex-grow px-4 py-2 border border-gray-300 rounded-md" placeholder="ค้นหาด้วยเลขประจำตัวนักเรียน...">
-                            <button onclick="filterAdminStudentTable()" class="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">ค้นหา</button>
-                            <button onclick="resetAdminStudentTable()" class="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">แสดงทั้งหมด</button>
+                        <div class="flex flex-col gap-4 mb-4 border-b pb-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                <input type="text" id="adminStudentSearch" class="px-4 py-2 border border-gray-300 rounded-md" placeholder="ค้นหาด้วยเลขประจำตัว...">
+                                <select id="adminSemesterFilter" class="px-4 py-2 border border-gray-300 rounded-md">
+                                    <option value="">ทุกภาคเรียน</option>
+                                    <option value="1">ภาคเรียนที่ 1</option>
+                                    <option value="2">ภาคเรียนที่ 2</option>
+                                </select>
+                                <select id="adminYearFilter" class="px-4 py-2 border border-gray-300 rounded-md">
+                                    <option value="">ทุกปีการศึกษา</option>
+                                    <!-- Populated by JS -->
+                                </select>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="applyAdminFilters()" class="flex-grow bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600">กรองข้อมูล</button>
+                                <button onclick="resetAdminFilters()" class="flex-grow bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600">แสดงทั้งหมด</button>
+                            </div>
                         </div>
 
                         <div class="flex flex-col sm:flex-row gap-2 mb-4">
@@ -775,6 +809,57 @@
             `;
         }
 
+        function renderOverallSystemStats() {
+            const statsDiv = document.getElementById('overall-stats-content');
+            const semester = document.getElementById('overallStatsSemester').value;
+            const academicYear = document.getElementById('overallStatsAcademicYear').value;
+
+            let data = allStudentDataForStats;
+             if (semester) {
+                data = data.filter(s => s.semester == semester);
+            }
+            if (academicYear) {
+                data = data.filter(s => s.academicYear == academicYear);
+            }
+
+            if (!data || data.length === 0) {
+                statsDiv.innerHTML = '<p class="col-span-full text-center text-gray-500 py-4">ไม่พบข้อมูลในระบบ</p>';
+                return;
+            }
+
+            const totalRecords = data.length;
+            const requestableCount = data.filter(r => r.attendancePercent >= 60 && r.status !== 'Approved').length;
+            const repeatCount = data.filter(r => r.attendancePercent < 60).length;
+            const approvedCount = data.filter(r => r.status === 'Approved').length;
+
+            const requestablePercent = totalRecords > 0 ? (requestableCount / totalRecords * 100).toFixed(1) : '0.0';
+            const repeatPercent = totalRecords > 0 ? (repeatCount / totalRecords * 100).toFixed(1) : '0.0';
+            const approvedPercent = totalRecords > 0 ? (approvedCount / totalRecords * 100).toFixed(1) : '0.0';
+
+            statsDiv.innerHTML = `
+                <div class="p-4 bg-blue-50 rounded-lg text-center shadow-sm border border-blue-100">
+                    <p class="text-3xl font-bold text-blue-600">${totalRecords}</p>
+                    <p class="text-md font-semibold text-blue-800">รายการทั้งหมด</p>
+                    <p class="text-xs text-blue-700 mt-1">(100%)</p>
+                </div>
+                <div class="p-4 bg-orange-50 rounded-lg text-center shadow-sm border border-orange-100">
+                    <p class="text-3xl font-bold text-orange-600">${requestableCount}</p>
+                    <p class="text-md font-semibold text-orange-800">มีสิทธิ์ยื่นคำร้อง</p>
+                    <p class="text-xs text-orange-700 mt-1">(${requestablePercent}%)</p>
+                </div>
+                <div class="p-4 bg-red-50 rounded-lg text-center shadow-sm border border-red-100">
+                    <p class="text-3xl font-bold text-red-600">${repeatCount}</p>
+                    <p class="text-md font-semibold text-red-800">ต้องเรียนซ้ำ</p>
+                    <p class="text-xs text-red-700 mt-1">(${repeatPercent}%)</p>
+                </div>
+                <div class="p-4 bg-green-50 rounded-lg text-center shadow-sm border border-green-100">
+                    <p class="text-3xl font-bold text-green-600">${approvedCount}</p>
+                    <p class="text-md font-semibold text-green-800">อนุมัติให้เข้าสอบ</p>
+                    <p class="text-xs text-green-700 mt-1">(${approvedPercent}%)</p>
+                </div>
+            `;
+        }
+
         async function loadInitialData() {
             const data = await apiFetch('getAllStudents');
             if (data) {
@@ -1159,6 +1244,7 @@
                         const success = await loadInitialData();
                         if (success) {
                             renderStudentStats();
+                            renderOverallSystemStats();
                             renderUploadedTeacherList();
                             renderTeacherStatsDashboard();
                         }
@@ -1225,6 +1311,21 @@
             loadAdminAnnouncements();
             renderStudentTable(allStudentDataForAdmin); // Use already loaded data
             loadUploadSchedule();
+            // Populate admin year filter dropdown
+            const adminYearFilter = document.getElementById('adminYearFilter');
+            const uniqueYears = [...new Set(allStudentDataForAdmin.map(item => item.academicYear))].filter(Boolean).sort();
+            
+            // Clear previous options except the first one
+            while (adminYearFilter.options.length > 1) {
+                adminYearFilter.remove(1);
+            }
+
+            uniqueYears.forEach(year => {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                adminYearFilter.appendChild(option);
+            });
         }
 
         async function loadAdminAnnouncements() {
@@ -1264,8 +1365,9 @@
                 const result = await apiFetch('updateStatus', 'POST', { studentId, courseId, status: 'Approved' });
                 if (result) {
                     await loadInitialData();
-                    renderStudentTable(allStudentDataForAdmin);
+                    applyAdminFilters(); // Re-apply filters instead of full render
                     renderStudentStats();
+                    renderOverallSystemStats();
                 }
             }
         }
@@ -1275,19 +1377,30 @@
                 const result = await apiFetch('updateStatus', 'POST', { studentId, courseId, status: '' });
                 if (result) {
                     await loadInitialData();
-                    renderStudentTable(allStudentDataForAdmin);
+                    applyAdminFilters(); // Re-apply filters instead of full render
                     renderStudentStats();
+                    renderOverallSystemStats();
                 }
             }
         }
 
-        function filterAdminStudentTable() {
+        function applyAdminFilters() {
             const searchTerm = document.getElementById('adminStudentSearch').value.trim();
-            if (!searchTerm) {
-                renderStudentTable(allStudentDataForAdmin);
-                return;
+            const semester = document.getElementById('adminSemesterFilter').value;
+            const year = document.getElementById('adminYearFilter').value;
+
+            let filteredData = allStudentDataForAdmin;
+
+            if (searchTerm) {
+                filteredData = filteredData.filter(student => String(student.studentId).includes(searchTerm));
             }
-            const filteredData = allStudentDataForAdmin.filter(student => String(student.studentId).includes(searchTerm));
+            if (semester) {
+                filteredData = filteredData.filter(student => student.semester == semester);
+            }
+            if (year) {
+                filteredData = filteredData.filter(student => student.academicYear == year);
+            }
+
             if (filteredData.length === 0) {
                 document.getElementById('admin-student-list').innerHTML = '<tr><td colspan="7" class="text-center p-4 text-gray-500">ไม่พบข้อมูลนักเรียนตามเงื่อนไขที่ค้นหา</td></tr>';
             } else {
@@ -1295,8 +1408,10 @@
             }
         }
 
-        function resetAdminStudentTable() {
+        function resetAdminFilters() {
             document.getElementById('adminStudentSearch').value = '';
+            document.getElementById('adminSemesterFilter').value = '';
+            document.getElementById('adminYearFilter').value = '';
             renderStudentTable(allStudentDataForAdmin);
         }
 
@@ -1844,7 +1959,14 @@
 
         // --- INITIALIZATION ---
         function populateYearDropdowns() {
-            const yearSelects = [document.getElementById('academicYear'), document.getElementById('printAcademicYear'), document.getElementById('statsAcademicYear'), document.getElementById('teacherStatsAcademicYear')];
+            const yearSelects = [
+                document.getElementById('academicYear'), 
+                document.getElementById('printAcademicYear'), 
+                document.getElementById('statsAcademicYear'), 
+                document.getElementById('teacherStatsAcademicYear'),
+                document.getElementById('adminYearFilter'),
+                document.getElementById('overallStatsAcademicYear')
+            ];
             const startYear = 2568;
             const endYear = 2578;
             const currentBuddhistYear = new Date().getFullYear() + 543;
@@ -1854,7 +1976,7 @@
                     select.innerHTML = '';
                 }
 
-                if(['printAcademicYear', 'statsAcademicYear', 'teacherStatsAcademicYear'].includes(select.id)) { 
+                if(['printAcademicYear', 'statsAcademicYear', 'teacherStatsAcademicYear', 'adminYearFilter', 'overallStatsAcademicYear'].includes(select.id)) { 
                      const allOption = document.createElement('option');
                      allOption.value = '';
                      allOption.textContent = 'ทุกปีการศึกษา';
@@ -1873,7 +1995,7 @@
                     select.value = startYear;
                 }
 
-                if(['printAcademicYear', 'statsAcademicYear', 'teacherStatsAcademicYear'].includes(select.id)) {
+                if(['printAcademicYear', 'statsAcademicYear', 'teacherStatsAcademicYear', 'adminYearFilter', 'overallStatsAcademicYear'].includes(select.id)) {
                     select.value = ''; // Default filters to all years
                 }
             });
@@ -1893,6 +2015,7 @@
             
             if (dataLoaded) {
                  renderStudentStats();
+                 renderOverallSystemStats();
                  renderUploadedTeacherList();
                  renderTeacherStatsDashboard();
             }
@@ -1920,4 +2043,6 @@
     </script>
 </body>
 </html>
+
+
 
